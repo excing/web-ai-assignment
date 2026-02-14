@@ -4,7 +4,7 @@
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
     import { Badge } from "$lib/components/ui/badge";
-    import { Separator } from "$lib/components/ui/separator";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import { Coins, Send, ArrowUpCircle, ArrowDownCircle, RefreshCw } from "lucide-svelte";
     import { toast } from "svelte-sonner";
     import { getCreditBalance, setCreditBalance } from "$lib/stores/credits.svelte";
@@ -87,119 +87,91 @@
     });
 </script>
 
-<section class="flex w-full flex-col items-start justify-start p-6">
-    <div class="w-full max-w-4xl">
-        <div class="flex flex-col items-start justify-center gap-2">
-            <h1 class="text-3xl font-semibold tracking-tight">积分</h1>
-            <p class="text-muted-foreground">查看积分余额、兑换码兑换和交易记录</p>
-        </div>
-
-        <div class="mt-6 flex flex-col gap-6">
-            <!-- Balance Card -->
-            <Card.Root>
-                <Card.Content class="flex items-center gap-4 pt-6">
-                    <div class="bg-primary/10 flex h-14 w-14 items-center justify-center rounded-full">
-                        <Coins class="text-primary h-7 w-7" />
+<section class="flex w-full flex-col items-center px-4 py-6">
+    <div class="w-full max-w-lg space-y-6">
+        <!-- 余额卡片 -->
+        <Card.Root>
+            <button class="w-full" disabled>
+                <Card.Content class="flex items-center gap-4 p-4">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                        <Coins class="h-6 w-6 text-amber-600 dark:text-amber-400" />
                     </div>
-                    <div>
+                    <div class="text-left">
                         <p class="text-muted-foreground text-sm">当前余额</p>
-                        <p class="text-4xl font-bold">{balance.toLocaleString()}</p>
+                        <p class="text-2xl font-bold">{balance.toLocaleString()}</p>
                     </div>
-                    <p class="text-muted-foreground ml-auto text-sm">积分永不过期</p>
+                    <p class="text-muted-foreground ml-auto hidden text-xs sm:block">永不过期</p>
                 </Card.Content>
-            </Card.Root>
+            </button>
+        </Card.Root>
 
-            <!-- Redeem Card -->
-            <Card.Root>
-                <Card.Header>
-                    <Card.Title>兑换码兑换</Card.Title>
-                    <Card.Description>输入兑换码获取积分</Card.Description>
-                </Card.Header>
-                <Card.Content>
-                    <form
-                        class="flex gap-3"
-                        onsubmit={(e) => { e.preventDefault(); handleRedeem(); }}
-                    >
-                        <Input
-                            bind:value={codeInput}
-                            placeholder="请输入兑换码，例如 XXXX-XXXX-XXXX"
-                            class="flex-1 font-mono uppercase"
-                            disabled={redeeming}
-                        />
-                        <Button type="submit" disabled={redeeming || !codeInput.trim()}>
-                            {#if redeeming}
-                                <RefreshCw class="mr-2 h-4 w-4 animate-spin" />
-                                兑换中...
-                            {:else}
-                                <Send class="mr-2 h-4 w-4" />
-                                兑换
-                            {/if}
-                        </Button>
-                    </form>
-                </Card.Content>
-            </Card.Root>
+        <!-- 兑换码兑换 -->
+        <Card.Root>
+            <Card.Header>
+                <Card.Title>兑换码兑换</Card.Title>
+                <Card.Description>输入兑换码获取积分</Card.Description>
+            </Card.Header>
+            <Card.Content>
+                <form
+                    class="flex gap-3"
+                    onsubmit={(e) => { e.preventDefault(); handleRedeem(); }}
+                >
+                    <Input
+                        bind:value={codeInput}
+                        placeholder="XXXX-XXXX-XXXX"
+                        class="flex-1 font-mono uppercase"
+                        disabled={redeeming}
+                    />
+                    <Button type="submit" disabled={redeeming || !codeInput.trim()}>
+                        {#if redeeming}
+                            <RefreshCw class="mr-2 h-4 w-4 animate-spin" />
+                            兑换中
+                        {:else}
+                            <Send class="mr-2 h-4 w-4" />
+                            兑换
+                        {/if}
+                    </Button>
+                </form>
+            </Card.Content>
+        </Card.Root>
 
-            <Separator />
-
-            <!-- Transaction History -->
-            <div>
-                <h2 class="mb-4 text-xl font-semibold">交易记录</h2>
-                {#if loadingTx}
-                    <Card.Root>
-                        <Card.Content class="py-8 text-center">
-                            <RefreshCw class="text-muted-foreground mx-auto h-6 w-6 animate-spin" />
-                            <p class="text-muted-foreground mt-2 text-sm">加载中...</p>
-                        </Card.Content>
-                    </Card.Root>
-                {:else if transactions.length === 0}
-                    <Card.Root>
-                        <Card.Content class="py-8 text-center">
-                            <Coins class="text-muted-foreground mx-auto h-8 w-8" />
-                            <p class="text-muted-foreground mt-2 text-sm">暂无交易记录</p>
-                        </Card.Content>
-                    </Card.Root>
-                {:else}
-                    <Card.Root>
-                        <Table.Root>
-                            <Table.Header>
-                                <Table.Row>
-                                    <Table.Head>类型</Table.Head>
-                                    <Table.Head>金额</Table.Head>
-                                    <Table.Head class="hidden sm:table-cell">描述</Table.Head>
-                                    <Table.Head class="text-right">时间</Table.Head>
-                                </Table.Row>
-                            </Table.Header>
-                            <Table.Body>
-                                {#each transactions as tx (tx.id)}
-                                    {@const badge = getTypeBadge(tx.type)}
-                                    <Table.Row>
-                                        <Table.Cell>
-                                            <Badge variant={badge.variant}>{badge.label}</Badge>
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <span class="flex items-center gap-1 font-medium {tx.amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
-                                                {#if tx.amount > 0}
-                                                    <ArrowUpCircle class="h-4 w-4" />
-                                                    +{tx.amount.toLocaleString()}
-                                                {:else}
-                                                    <ArrowDownCircle class="h-4 w-4" />
-                                                    {tx.amount.toLocaleString()}
-                                                {/if}
-                                            </span>
-                                        </Table.Cell>
-                                        <Table.Cell class="text-muted-foreground hidden sm:table-cell">
-                                            {tx.description ?? "-"}
-                                        </Table.Cell>
-                                        <Table.Cell class="text-muted-foreground text-right text-sm">
-                                            {formatDate(tx.createdAt)}
-                                        </Table.Cell>
-                                    </Table.Row>
-                                {/each}
-                            </Table.Body>
-                        </Table.Root>
-                    </Card.Root>
-                {/if}
-            </div>
+        <!-- 交易记录 -->
+        <div>
+            <h2 class="mb-3 text-sm font-medium text-muted-foreground">交易记录</h2>
+            {#if loadingTx}
+                <div class="space-y-2">
+                    <Skeleton class="h-14 w-full rounded-lg" />
+                    <Skeleton class="h-14 w-full rounded-lg" />
+                    <Skeleton class="h-14 w-full rounded-lg" />
+                </div>
+            {:else if transactions.length === 0}
+                <div class="py-8 text-center">
+                    <Coins class="text-muted-foreground mx-auto mb-3 h-10 w-10" />
+                    <p class="text-muted-foreground text-sm">暂无交易记录</p>
+                </div>
+            {:else}
+                <div class="space-y-2">
+                    {#each transactions as tx (tx.id)}
+                        {@const badge = getTypeBadge(tx.type)}
+                        <div class="flex items-center gap-3 rounded-lg border p-3">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <Badge variant={badge.variant} class="text-xs">{badge.label}</Badge>
+                                    <span class="text-muted-foreground truncate text-xs">{tx.description ?? ""}</span>
+                                </div>
+                                <p class="text-muted-foreground mt-1 text-xs">{formatDate(tx.createdAt)}</p>
+                            </div>
+                            <span class="flex-shrink-0 font-medium {tx.amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+                                {#if tx.amount > 0}
+                                    +{tx.amount.toLocaleString()}
+                                {:else}
+                                    {tx.amount.toLocaleString()}
+                                {/if}
+                            </span>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
         </div>
     </div>
 </section>

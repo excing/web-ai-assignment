@@ -4,25 +4,21 @@
     import * as Card from "$lib/components/ui/card";
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
-	import { Skeleton } from "$lib/components/ui/skeleton";
-	import { authClient } from "$lib/auth-client";
-	import { Settings2 } from "lucide-svelte";
+    import { Skeleton } from "$lib/components/ui/skeleton";
+    import { authClient } from "$lib/auth-client";
     import { toast } from "svelte-sonner";
     import {
         getAuthLoaded,
         getCurrentUser,
         patchCurrentUser,
-        type AuthUser,
     } from "$lib/stores/auth.svelte";
 
     let user = $derived(getCurrentUser());
     let loading = $derived(!getAuthLoaded());
-    // Profile form states
     let name = $state("");
     let email = $state("");
     let didInitForm = $state(false);
 
-    // Profile picture upload states
     let imagePreview = $state<string | null>(null);
     let uploadingImage = $state(false);
 
@@ -40,94 +36,87 @@
         try {
             await authClient.updateUser({ name });
             patchCurrentUser({ name });
-            toast.success("Profile updated successfully");
+            toast.success("资料已更新");
         } catch {
-            toast.error("Failed to update profile");
+            toast.error("更新失败，请重试");
         }
     }
 </script>
 
-{#if loading}
-    <div class="flex flex-col gap-6 p-6">
-        <div>
-            <Skeleton class="mb-2 h-9 w-32 bg-gray-200 dark:bg-gray-800" />
-            <Skeleton class="h-5 w-80 bg-gray-200 dark:bg-gray-800" />
-        </div>
+<section class="flex w-full flex-col items-center px-4 py-6">
+    <div class="w-full max-w-lg space-y-6">
+        {#if loading}
+            <Card.Root>
+                <Card.Content class="space-y-6 p-6">
+                    <div class="flex items-center gap-4">
+                        <Skeleton class="h-20 w-20 rounded-full" />
+                        <div class="space-y-2">
+                            <Skeleton class="h-8 w-24" />
+                            <Skeleton class="h-4 w-36" />
+                        </div>
+                    </div>
+                    <Skeleton class="h-16 w-full" />
+                    <Skeleton class="h-16 w-full" />
+                </Card.Content>
+            </Card.Root>
+        {:else}
+            <!-- 头像 -->
+            <Card.Root>
+                <Card.Content class="flex items-center gap-4 p-4">
+                    <Avatar.Root class="h-16 w-16">
+                        {#if imagePreview || user?.image}
+                            <Avatar.Image src={imagePreview || user?.image || ""} />
+                        {:else}
+                            <Avatar.Fallback class="text-lg">
+                                {name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")}
+                            </Avatar.Fallback>
+                        {/if}
+                    </Avatar.Root>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium truncate">{name || "用户"}</p>
+                        <p class="text-muted-foreground text-sm truncate">{email}</p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingImage}
+                    >
+                        {uploadingImage ? "上传中..." : "更换头像"}
+                    </Button>
+                </Card.Content>
+            </Card.Root>
+
+            <!-- 个人信息 -->
+            <Card.Root>
+                <Card.Header>
+                    <Card.Title>个人信息</Card.Title>
+                    <Card.Description>修改你的个人资料</Card.Description>
+                </Card.Header>
+                <Card.Content class="space-y-4">
+                    <div class="space-y-2">
+                        <Label for="name">姓名</Label>
+                        <Input
+                            id="name"
+                            bind:value={name}
+                            placeholder="输入你的姓名"
+                        />
+                    </div>
+                    <div class="space-y-2">
+                        <Label for="email">邮箱</Label>
+                        <Input
+                            id="email"
+                            type="email"
+                            bind:value={email}
+                            disabled
+                        />
+                        <p class="text-muted-foreground text-xs">邮箱地址不可修改</p>
+                    </div>
+                    <Button onclick={handleUpdateProfile} class="w-full">保存修改</Button>
+                </Card.Content>
+            </Card.Root>
+        {/if}
     </div>
-{:else}
-    <div class="flex flex-col gap-6 p-6">
-        <div>
-            <h1 class="text-3xl font-semibold tracking-tight">Settings</h1>
-            <p class="text-muted-foreground mt-2">
-                Manage your account settings and preferences
-            </p>
-        </div>
-
-	        <Card.Root class="w-full max-w-4xl">
-	            <Card.Header>
-	                <Card.Title class="flex items-center gap-2">
-	                    <Settings2 class="h-5 w-5" />
-	                    Profile Information
-	                </Card.Title>
-	                <Card.Description>
-	                    Update your personal information and profile settings
-	                </Card.Description>
-	            </Card.Header>
-	            <Card.Content class="space-y-6">
-	                <div class="flex items-center gap-4">
-	                    <Avatar.Root class="h-20 w-20">
-	                        {#if imagePreview || user?.image}
-	                            <Avatar.Image
-	                                src={imagePreview || user?.image || ""}
-	                            />
-	                        {:else}
-	                            <Avatar.Fallback>
-	                                {name
-	                                    .split(" ")
-	                                    .map((n) => n[0])
-	                                    .join("")}
-	                            </Avatar.Fallback>
-	                        {/if}
-	                    </Avatar.Root>
-	                    <div class="space-y-2">
-	                        <Button
-	                            variant="outline"
-	                            size="sm"
-	                            disabled={uploadingImage}
-	                        >
-	                            {uploadingImage
-	                                ? "Uploading..."
-	                                : "Change Photo"}
-	                        </Button>
-	                        <p class="text-muted-foreground text-sm">
-	                            JPG, GIF or PNG. 1MB max.
-	                        </p>
-	                    </div>
-	                </div>
-
-	                <div class="grid grid-cols-2 gap-4">
-	                    <div class="space-y-2">
-	                        <Label for="name">Full Name</Label>
-	                        <Input
-	                            id="name"
-	                            bind:value={name}
-	                            placeholder="Enter your full name"
-	                        />
-	                    </div>
-	                    <div class="space-y-2">
-	                        <Label for="email">Email</Label>
-	                        <Input
-	                            id="email"
-	                            type="email"
-	                            bind:value={email}
-	                            placeholder="Enter your email"
-	                            disabled
-	                        />
-	                    </div>
-	                </div>
-
-	                <Button onclick={handleUpdateProfile}>Save Changes</Button>
-	            </Card.Content>
-	        </Card.Root>
-    </div>
-{/if}
+</section>
