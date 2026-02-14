@@ -1,0 +1,1 @@
+ALTER TABLE "credit_package" ADD COLUMN "is_visible" boolean DEFAULT true NOT NULL;
