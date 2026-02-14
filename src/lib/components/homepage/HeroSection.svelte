@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Button } from "$lib/components/ui/button";
     import GetStartedButton from "$lib/components/common/GetStartedButton.svelte";
+    import { defaultRoute } from "$lib/config/navigation";
 </script>
 
 <section class="py-20">
@@ -21,7 +22,7 @@
             <div
                 class="flex flex-col items-center gap-2 *:w-full sm:flex-row sm:justify-center sm:*:w-auto"
             >
-                <GetStartedButton href="/chat" variant="default" size="sm">
+                <GetStartedButton href={defaultRoute} variant="default" size="sm">
                     <span class="text-nowrap">Get Started</span>
                 </GetStartedButton>
                 <Button

@@ -10,6 +10,7 @@
         recordVerificationEmailSent,
         getRemainingWaitTime,
     } from "$lib/utils/verification";
+    import { defaultRoute } from "$lib/config/navigation";
 
     let email = $state("");
     let loading = $state(false);
@@ -77,7 +78,7 @@
         try {
             await authClient.sendVerificationEmail({
                 email,
-                callbackURL: "/chat",
+                callbackURL: defaultRoute,
                 fetchOptions: {
                     onError: async (context) => {
                         if (context.response.status === 429) {

@@ -10,6 +10,7 @@
     import { goto } from "$app/navigation";
     import { Loader2 } from "lucide-svelte";
     import { recordVerificationEmailSent } from "$lib/utils/verification";
+    import { defaultRoute } from "$lib/config/navigation";
 
     let loading = $state(false);
     let email = $state("");
@@ -17,9 +18,9 @@
 
     // 验证 returnTo 是安全的相对路径，防止开放重定向攻击
     function getSafeReturnTo(url: string | null): string {
-        if (!url) return "/chat";
+        if (!url) return defaultRoute;
         if (url.startsWith("/") && !url.startsWith("//") && !url.includes("://")) return url;
-        return "/chat";
+        return defaultRoute;
     }
 
     const returnTo = $derived(getSafeReturnTo($page.url.searchParams.get("returnTo")));
@@ -57,7 +58,7 @@
                     try {
                         await authClient.sendVerificationEmail({
                             email,
-                            callbackURL: "/chat",
+                            callbackURL: defaultRoute,
                         });
                         // 记录发送时间到 localStorage
                         recordVerificationEmailSent(email);
