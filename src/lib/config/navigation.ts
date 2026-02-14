@@ -1,0 +1,52 @@
+import {
+	MessageCircle,
+	Upload,
+	Package,
+	Ticket,
+	Server,
+	type Icon,
+} from 'lucide-svelte';
+import type { ComponentType } from 'svelte';
+
+// ─── 类型定义 ────────────────────────────────────────────
+
+export interface NavItem {
+	/** 路由标识 */
+	key: string;
+	/** 显示标签 */
+	label: string;
+	/** 图标组件 */
+	icon: ComponentType<Icon>;
+	/** 路由路径 */
+	href: string;
+}
+
+export interface AdminNavItem extends NavItem {}
+
+// ─── 功能导航（侧边栏 / 底部 Tab）────────────────────────
+
+export const navItems: NavItem[] = [
+	{ key: 'chat', label: 'Chat', icon: MessageCircle, href: '/chat' },
+	{ key: 'files', label: '文件', icon: Upload, href: '/files' },
+];
+
+// ─── 管理后台导航（仅 Admin 可见）────────────────────────
+
+export const adminNavItems: AdminNavItem[] = [
+	{ key: 'admin-packages', label: '套餐管理', icon: Package, href: '/admin/packages' },
+	{ key: 'admin-codes', label: '兑换码管理', icon: Ticket, href: '/admin/codes' },
+	{ key: 'admin-ai-proxy', label: 'AI Proxy', icon: Server, href: '/admin/ai-proxy' },
+];
+
+// ─── 默认路由 ─────────────────────────────────────────────
+
+/** 登录后默认跳转的路由 */
+export const defaultRoute = '/chat';
+
+// ─── 受保护路由前缀 ──────────────────────────────────────
+
+/** 需要认证的路由前缀列表 */
+export const protectedPrefixes = ['/chat', '/files', '/me', '/admin'];
+
+/** 认证相关页面（已登录用户会被重定向走） */
+export const authPages = ['/sign-in', '/sign-up'];

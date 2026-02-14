@@ -18,9 +18,9 @@
 
     // 验证 returnTo 是安全的相对路径，防止开放重定向攻击
     function getSafeReturnTo(url: string | null): string {
-        if (!url) return "/dashboard";
+        if (!url) return "/chat";
         if (url.startsWith("/") && !url.startsWith("//") && !url.includes("://")) return url;
-        return "/dashboard";
+        return "/chat";
     }
 
     const returnTo = $derived(getSafeReturnTo($page.url.searchParams.get("returnTo")));

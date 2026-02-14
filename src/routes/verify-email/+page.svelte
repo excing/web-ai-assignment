@@ -77,7 +77,7 @@
         try {
             await authClient.sendVerificationEmail({
                 email,
-                callbackURL: "/dashboard",
+                callbackURL: "/chat",
                 fetchOptions: {
                     onError: async (context) => {
                         if (context.response.status === 429) {

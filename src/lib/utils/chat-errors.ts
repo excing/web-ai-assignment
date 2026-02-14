@@ -46,7 +46,7 @@ export function parseError(error: Error | unknown, isOnline: boolean): ChatError
 			type: 'insufficient_credits',
 			message: '积分不足，请先充值',
 			retryable: false,
-			action: { label: '去充值', href: '/dashboard/credits' },
+			action: { label: '去充值', href: '/me/credits' },
 		};
 	}
 

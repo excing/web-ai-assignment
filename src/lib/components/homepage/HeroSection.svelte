@@ -21,7 +21,7 @@
             <div
                 class="flex flex-col items-center gap-2 *:w-full sm:flex-row sm:justify-center sm:*:w-auto"
             >
-                <GetStartedButton href="/dashboard" variant="default" size="sm">
+                <GetStartedButton href="/chat" variant="default" size="sm">
                     <span class="text-nowrap">Get Started</span>
                 </GetStartedButton>
                 <Button

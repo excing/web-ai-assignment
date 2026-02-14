@@ -89,7 +89,7 @@
             <DropdownMenu.Label>My Account</DropdownMenu.Label>
             <DropdownMenu.Separator />
             <DropdownMenu.Group>
-                <a href="/dashboard/settings?tab=profile">
+                <a href="/me/settings">
                     <DropdownMenu.Item>
                         Profile
                         <DropdownMenu.Shortcut>⇧⌘P</DropdownMenu.Shortcut>

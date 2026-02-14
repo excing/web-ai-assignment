@@ -6,6 +6,7 @@ import {
 	billingPostPayment,
 	wrapStreamingResponse,
 } from '$lib/server/credits/billing-middleware';
+import { protectedPrefixes, authPages, defaultRoute } from '$lib/config/navigation';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Get session from Better Auth
@@ -15,19 +16,20 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 
 	// Redirect authenticated users away from auth pages
-	if (session?.user && ['/sign-in', '/sign-up'].includes(pathname)) {
-		throw redirect(302, '/dashboard');
+	if (session?.user && authPages.includes(pathname)) {
+		throw redirect(302, defaultRoute);
 	}
 
-	// Protect dashboard routes
-	if (!session?.user && pathname.startsWith('/dashboard')) {
+	// Protect app routes
+	const isProtected = protectedPrefixes.some((prefix) => pathname.startsWith(prefix));
+	if (!session?.user && isProtected) {
 		throw redirect(302, '/sign-in');
 	}
 
 	// Protect admin routes
-	if (pathname.startsWith('/dashboard/admin')) {
+	if (pathname.startsWith('/admin')) {
 		if (!isAdmin(session?.user?.email)) {
-			throw redirect(302, '/dashboard');
+			throw redirect(302, defaultRoute);
 		}
 	}
 

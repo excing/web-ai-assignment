@@ -418,7 +418,7 @@
                     积分余额不足 ({creditBalance} 积分)
                 </span>
                 <a
-                    href="/dashboard/credits"
+                    href="/me/credits"
                     class="ml-auto font-medium text-yellow-700 underline hover:text-yellow-900 dark:text-yellow-300 dark:hover:text-yellow-100"
                 >
                     立即充值
