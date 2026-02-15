@@ -2,8 +2,6 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { redeemCode } from '$lib/server/credits/credit-service';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-    if (!locals.session?.user) return json({ error: '请先登录' }, { status: 401 });
-
     let body: unknown;
     try {
         body = await request.json();
@@ -16,7 +14,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         return json({ error: '请输入兑换码' }, { status: 400 });
     }
 
-    const result = await redeemCode(locals.session.user.id, code.trim());
+    const result = await redeemCode(locals.session!.user.id, code.trim());
     if (!result.success) {
         return json({ error: result.error }, { status: 400 });
     }

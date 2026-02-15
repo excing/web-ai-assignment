@@ -1,33 +1,23 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { createChatService } from '$lib/server/services/chat-service';
-import {
-	parseRequestBody,
-	validateAuthentication,
-	validateChatMessages
-} from '$lib/server/services/validation';
+import { parseRequestBody, validateChatMessages } from '$lib/server/services/validation';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	// 1. 认证检查
-	const authResult = validateAuthentication(locals.session);
-	if (!authResult.success) {
-		return json({ error: authResult.error }, { status: 401 });
-	}
-
-	// 2. 解析请求体
+	// 1. 解析请求体
 	const bodyResult = await parseRequestBody(request);
 	if (!bodyResult.success) {
 		return json({ error: bodyResult.error }, { status: 400 });
 	}
 
-	// 3. 验证消息列表
+	// 2. 验证消息列表
 	const { messages } = bodyResult.data as { messages?: unknown };
 	const messagesResult = validateChatMessages(messages);
 	if (!messagesResult.success) {
 		return json({ error: messagesResult.error }, { status: 400 });
 	}
 
-	// 4. 创建聊天服务并处理请求
+	// 3. 创建聊天服务并处理请求
 	const chatService = createChatService({
 		feature: 'chat',
 		maxOutputTokens: 4096,

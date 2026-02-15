@@ -1,14 +1,9 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { guardAdmin } from '$lib/server/credits/admin';
 import { createCodes, listCodes, type CodeStatus } from '$lib/server/credits/code-service';
 import { getPackageById } from '$lib/server/credits/package-service';
 import { parsePagination } from '$lib/config/constants';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-    if (!locals.session?.user) return json({ error: '请先登录' }, { status: 401 });
-    const denied = guardAdmin(locals.session.user.email);
-    if (denied) return denied;
-
     const packageId = url.searchParams.get('packageId') ?? undefined;
     const statusParam = url.searchParams.get('status') as CodeStatus | null;
     const { limit, offset } = parsePagination(url);
@@ -24,10 +19,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-    if (!locals.session?.user) return json({ error: '请先登录' }, { status: 401 });
-    const denied = guardAdmin(locals.session.user.email);
-    if (denied) return denied;
-
     let body: unknown;
     try {
         body = await request.json();
@@ -75,7 +66,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         expiresAt: resolvedExpiresAt,
         maxRedemptions: maxRedemptions ?? 1,
         count: count ?? 1,
-    }, locals.session.user.id);
+    }, locals.session!.user.id);
 
     return json({ codes }, { status: 201 });
 };

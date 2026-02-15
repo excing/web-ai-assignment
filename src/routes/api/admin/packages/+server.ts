@@ -1,23 +1,14 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { guardAdmin } from '$lib/server/credits/admin';
 import { createPackage, listPackages } from '$lib/server/credits/package-service';
 import { parsePagination } from '$lib/config/constants';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-    if (!locals.session?.user) return json({ error: '请先登录' }, { status: 401 });
-    const denied = guardAdmin(locals.session.user.email);
-    if (denied) return denied;
-
     const { limit, offset } = parsePagination(url);
     const { items, total } = await listPackages(true, { limit, offset });
     return json({ packages: items, total, limit, offset });
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-    if (!locals.session?.user) return json({ error: '请先登录' }, { status: 401 });
-    const denied = guardAdmin(locals.session.user.email);
-    if (denied) return denied;
-
     let body: unknown;
     try {
         body = await request.json();

@@ -48,3 +48,15 @@ export const protectedPrefixes = ['/chat', '/me', '/admin'];
 
 /** 认证相关页面（已登录用户会被重定向走） */
 export const authPages = ['/sign-in', '/sign-up'];
+
+// ─── API 路由认证配置 ────────────────────────────────────
+
+/** 公开 API 路径（不需要认证） */
+export const publicApiPaths = [
+	'/api/auth' // Better Auth 处理器
+];
+
+/** 需要管理员权限的 API 路径前缀 */
+export const adminApiPrefixes = [
+	'/api/admin'
+];

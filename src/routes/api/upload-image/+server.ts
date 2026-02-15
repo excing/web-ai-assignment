@@ -14,11 +14,6 @@ const allowedMimeTypes = Object.keys(mimeToExtensions);
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     try {
-        // 认证检查：确保用户已登录
-        if (!locals.session?.user) {
-            return json({ error: 'Unauthorized. Please sign in to upload files.' }, { status: 401 });
-        }
-
         const formData = await request.formData();
         const file = formData.get('file') as File | null;
 

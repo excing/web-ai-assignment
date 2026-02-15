@@ -1,12 +1,18 @@
 import { auth } from '$lib/server/auth';
-import { redirect, type Handle } from '@sveltejs/kit';
+import { redirect, type Handle, json } from '@sveltejs/kit';
 import { isAdmin } from '$lib/server/credits/admin';
 import {
 	billingPreCheck,
 	billingPostPayment,
 	wrapStreamingResponse,
 } from '$lib/server/credits/billing-middleware';
-import { protectedPrefixes, authPages, defaultRoute } from '$lib/config/navigation';
+import {
+	protectedPrefixes,
+	authPages,
+	defaultRoute,
+	publicApiPaths,
+	adminApiPrefixes
+} from '$lib/config/navigation';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Get session from Better Auth
@@ -14,6 +20,26 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.session = session;
 
 	const { pathname } = event.url;
+
+	// ─── API 路由认证 ────────────────────────────────────────
+	if (pathname.startsWith('/api/')) {
+		// 1. 检查是否是公开 API（不需要认证）
+		const isPublicApi = publicApiPaths.some((path) => pathname.startsWith(path));
+		if (!isPublicApi) {
+			if (!session?.user) {
+				return json({ error: '请先登录' }, { status: 401 });
+			}
+			// 2. 检查是否需要管理员权限
+			const isAdminApi = adminApiPrefixes.some((prefix) => pathname.startsWith(prefix));
+			if (isAdminApi) {
+				if (!isAdmin(session.user.email)) {
+					return json({ error: '无权限访问' }, { status: 403 });
+				}
+			}
+		}
+	}
+
+	// ─── 页面路由认证 ────────────────────────────────────────
 
 	// Redirect authenticated users away from auth pages
 	if (session?.user && authPages.includes(pathname)) {

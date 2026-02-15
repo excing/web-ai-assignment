@@ -9,11 +9,6 @@ import { errorResponse, ValidationError } from '$lib/server/errors';
 const VALID_PROVIDERS = ['openai', 'anthropic', 'google'];
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-    const session = locals.session;
-    if (!session?.user) {
-        return json({ error: '未登录' }, { status: 401 });
-    }
-
     try {
         const body = await request.json();
         const { version, proxies } = body;
