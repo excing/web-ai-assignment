@@ -1,6 +1,5 @@
 import {
 	MessageCircle,
-	Upload,
 	Package,
 	Ticket,
 	Server,
@@ -27,7 +26,6 @@ export interface AdminNavItem extends NavItem {}
 
 export const navItems: NavItem[] = [
 	{ key: 'chat', label: 'Chat', icon: MessageCircle, href: '/chat' },
-	{ key: 'files', label: '文件', icon: Upload, href: '/files' },
 ];
 
 // ─── 管理后台导航（仅 Admin 可见）────────────────────────
@@ -46,7 +44,7 @@ export const defaultRoute = '/chat';
 // ─── 受保护路由前缀 ──────────────────────────────────────
 
 /** 需要认证的路由前缀列表 */
-export const protectedPrefixes = ['/chat', '/files', '/me', '/admin'];
+export const protectedPrefixes = ['/chat', '/me', '/admin'];
 
 /** 认证相关页面（已登录用户会被重定向走） */
 export const authPages = ['/sign-in', '/sign-up'];
