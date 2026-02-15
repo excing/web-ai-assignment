@@ -11,30 +11,15 @@
         onStop: () => void;
     } = $props();
 
-    let hasFiles = $derived(message.parts.some((p) => p.type === "file"));
 </script>
 
-<!-- 思考过程 -->
+<!-- 按原始顺序显示所有 parts -->
 {#each message.parts as part}
     {#if part.type === "reasoning" && part.text}
         <MessageReasoning {part} />
-    {/if}
-{/each}
-
-<!-- 图片区域 -->
-{#if hasFiles}
-    <div class="flex flex-wrap gap-2 justify-start">
-        {#each message.parts as part}
-            {#if part.type === "file"}
-                <MessageFile {part} role="assistant" />
-            {/if}
-        {/each}
-    </div>
-{/if}
-
-<!-- 文本区域 -->
-{#each message.parts as part}
-    {#if part.type === "text"}
+    {:else if part.type === "file"}
+        <MessageFile {part} role="assistant" />
+    {:else if part.type === "text"}
         <MessageText {part} role="assistant" {showCursor} />
     {/if}
 {/each}

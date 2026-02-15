@@ -1,4 +1,4 @@
-import { streamText, convertToModelMessages } from 'ai';
+import { streamText, convertToModelMessages, extractReasoningMiddleware } from 'ai';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import {
@@ -8,6 +8,7 @@ import {
 	reportProxyFailure
 } from '$lib/server/ai-proxy';
 import { createLogger } from '$lib/server/logger';
+import { wrapLanguageModel } from 'ai';
 
 const log = createLogger('api-chat');
 
@@ -35,7 +36,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// 获取 Proxy 配置（数据库优先，fallback 到环境变量）
 	const proxyConfig = await getProxyForFeatureWithFallback('chat');
-	const model = createModelFromProxy(proxyConfig);
+	const rawModel = createModelFromProxy(proxyConfig);
+
+	// 3. 包装模型，提取 <think> 标签中的推理内容
+	const model = wrapLanguageModel({
+		model: rawModel,
+		middleware: extractReasoningMiddleware({ tagName: 'think' }),
+	});
 
 	// ── 计费集成：捕获 token 用量 ──
 	const billingCtx = locals.billingContext;
