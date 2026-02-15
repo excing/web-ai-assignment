@@ -14,6 +14,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createLogger } from '$lib/server/logger';
+import { createProxiedFetch } from '$lib/server/http-proxy';
 import { AI_PROVIDER, HEALTH_STATUS } from '$lib/config/constants';
 
 const log = createLogger('ai-proxy');
@@ -178,23 +179,24 @@ export async function getProxyForFeatureWithFallback(featureKey: string): Promis
  */
 export function createModelFromProxy(config: ProxyConfig): LanguageModelV3 {
     const { provider, baseUrl, apiKey, model } = config;
+    const fetch = createProxiedFetch(baseUrl);
 
     switch (provider) {
         case 'openai': {
-            const openai = createOpenAI({ baseURL: baseUrl, apiKey });
+            const openai = createOpenAI({ baseURL: baseUrl, apiKey, fetch });
             return openai.chat(model);
         }
         case 'anthropic': {
-            const anthropic = createAnthropic({ baseURL: baseUrl, apiKey });
+            const anthropic = createAnthropic({ baseURL: baseUrl, apiKey, fetch });
             return anthropic(model);
         }
         case 'google': {
-            const google = createGoogleGenerativeAI({ baseURL: baseUrl, apiKey });
+            const google = createGoogleGenerativeAI({ baseURL: baseUrl, apiKey, fetch });
             return google(model);
         }
         default: {
             // 未知 provider 按 OpenAI 兼容接口处理
-            const fallback = createOpenAI({ baseURL: baseUrl, apiKey });
+            const fallback = createOpenAI({ baseURL: baseUrl, apiKey, fetch });
             return fallback.chat(model);
         }
     }
