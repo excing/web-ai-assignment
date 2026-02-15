@@ -46,6 +46,22 @@ export interface TextGenerationRequest {
 }
 
 /**
+ * 多媒体资源类型
+ */
+export interface MediaResource {
+	/** 资源类型 */
+	type: 'image' | 'video' | 'audio' | 'file' | 'url';
+	/** 资源 URL 或 Base64 数据 */
+	data: string;
+	/** MIME 类型 */
+	mimeType?: string;
+	/** 文件名 */
+	filename?: string;
+	/** 是否为 Base64 编码 */
+	isBase64?: boolean;
+}
+
+/**
  * 文本生成响应
  */
 export interface TextGenerationResponse {
@@ -61,6 +77,8 @@ export interface TextGenerationResponse {
 	};
 	/** 推理内容（如果有） */
 	reasoning?: string;
+	/** 提取的多媒体资源 */
+	mediaResources: MediaResource[];
 }
 
 /**
@@ -85,6 +103,188 @@ export class TextGenerationService {
 	 */
 	async convertMessages(messages: Array<Omit<UIMessage, 'id'>>) {
 		return await convertToModelMessages(messages);
+	}
+
+	/**
+	 * 下载 HTTP 资源并转换为 Base64
+	 */
+	private async downloadAndConvertToBase64(
+		url: string,
+		timeout = 10000
+	): Promise<{ data: string; mimeType: string } | null> {
+		try {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+			const response = await fetch(url, {
+				signal: controller.signal,
+				headers: {
+					'User-Agent': 'Mozilla/5.0 (compatible; TextGenerationService/1.0)'
+				}
+			});
+
+			clearTimeout(timeoutId);
+
+			if (!response.ok) {
+				log.error(`下载资源失败: ${url}`, undefined, { status: response.status });
+				return null;
+			}
+
+			// 获取 MIME 类型
+			const mimeType = response.headers.get('content-type') || 'application/octet-stream';
+
+			// 检查文件大小（限制 10MB）
+			const contentLength = response.headers.get('content-length');
+			if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
+				log.error(`资源过大: ${url}`, undefined, { size: contentLength });
+				return null;
+			}
+
+			// 下载到内存
+			const arrayBuffer = await response.arrayBuffer();
+			const buffer = Buffer.from(arrayBuffer);
+
+			// 转换为 Base64
+			const base64 = buffer.toString('base64');
+			const dataUrl = `data:${mimeType};base64,${base64}`;
+
+			return { data: dataUrl, mimeType };
+		} catch (error) {
+			if (error instanceof Error && error.name === 'AbortError') {
+				log.error(`下载资源超时: ${url}`);
+			} else {
+				log.error(`下载资源异常: ${url}`, error instanceof Error ? error : undefined);
+			}
+			return null;
+		}
+	}
+
+	/**
+	 * 提取文本中的多媒体资源
+	 */
+	private async extractMediaResources(text: string, files: Array<any>, content: Array<any>): Promise<MediaResource[]> {
+		const resources: MediaResource[] = [];
+
+		// 1. 提取生成的文件（来自 AI SDK）
+		if (files && files.length > 0) {
+			for (const file of files) {
+				resources.push({
+					type: this.getMediaType(file.mediaType || file.mimeType),
+					data: file.url || file.data,
+					mimeType: file.mediaType || file.mimeType,
+					filename: file.filename || file.name,
+					isBase64: file.url?.startsWith('data:') || false
+				});
+			}
+		}
+
+		// 2. 从 content 中提取多媒体内容
+		if (content && content.length > 0) {
+			for (const part of content) {
+				if (part.type === 'file' || part.type === 'image') {
+					resources.push({
+						type: this.getMediaType(part.mediaType || part.mimeType),
+						data: part.url || part.data,
+						mimeType: part.mediaType || part.mimeType,
+						filename: part.filename || part.name,
+						isBase64: part.url?.startsWith('data:') || false
+					});
+				}
+			}
+		}
+
+		// 3. 使用正则提取文本中的 URL 链接
+		const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+\.(jpg|jpeg|png|gif|webp|mp4|webm|mp3|wav|pdf|doc|docx)/gi;
+		const urls = text.match(urlRegex);
+		if (urls) {
+			// 并行下载所有 URL
+			const downloadPromises = urls.map(async (url) => {
+				const result = await this.downloadAndConvertToBase64(url);
+				if (result) {
+					const ext = url.split('.').pop()?.toLowerCase();
+					return {
+						type: this.getMediaTypeFromExtension(ext || ''),
+						data: result.data,
+						mimeType: result.mimeType,
+						isBase64: true
+					} as MediaResource;
+				}
+				return null;
+			});
+
+			const downloadedResources = await Promise.all(downloadPromises);
+			resources.push(...downloadedResources.filter((r): r is MediaResource => r !== null));
+		}
+
+		// 4. 提取 Base64 编码的图片（data:image/...;base64,...）
+		const base64Regex = /data:(image|video|audio)\/([a-zA-Z0-9+.-]+);base64,([A-Za-z0-9+/=]+)/g;
+		let match;
+		while ((match = base64Regex.exec(text)) !== null) {
+			const [fullMatch, mediaType, format, base64Data] = match;
+			resources.push({
+				type: mediaType as 'image' | 'video' | 'audio',
+				data: fullMatch,
+				mimeType: `${mediaType}/${format}`,
+				isBase64: true
+			});
+		}
+
+		// 5. 提取 Markdown 图片语法中的 URL
+		const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+		const markdownUrls: Array<{ alt: string; url: string }> = [];
+		while ((match = markdownImageRegex.exec(text)) !== null) {
+			const [, alt, url] = match;
+			if (url && !url.startsWith('data:')) {
+				markdownUrls.push({ alt, url });
+			}
+		}
+
+		if (markdownUrls.length > 0) {
+			// 并行下载所有 Markdown 图片
+			const downloadPromises = markdownUrls.map(async ({ alt, url }) => {
+				const result = await this.downloadAndConvertToBase64(url);
+				if (result) {
+					return {
+						type: 'image' as const,
+						data: result.data,
+						mimeType: result.mimeType,
+						filename: alt || undefined,
+						isBase64: true
+					} as MediaResource;
+				}
+				return null;
+			});
+
+			const downloadedResources = await Promise.all(downloadPromises);
+			resources.push(...downloadedResources.filter((r): r is MediaResource => r !== null));
+		}
+
+		return resources;
+	}
+
+	/**
+	 * 根据 MIME 类型判断媒体类型
+	 */
+	private getMediaType(mimeType?: string): MediaResource['type'] {
+		if (!mimeType) return 'file';
+		if (mimeType.startsWith('image/')) return 'image';
+		if (mimeType.startsWith('video/')) return 'video';
+		if (mimeType.startsWith('audio/')) return 'audio';
+		return 'file';
+	}
+
+	/**
+	 * 根据文件扩展名判断媒体类型
+	 */
+	private getMediaTypeFromExtension(ext: string): MediaResource['type'] {
+		const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'];
+		const videoExts = ['mp4', 'webm', 'avi', 'mov', 'mkv'];
+		const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'm4a'];
+
+		if (imageExts.includes(ext)) return 'image';
+		if (videoExts.includes(ext)) return 'video';
+		if (audioExts.includes(ext)) return 'audio';
+		return 'file';
 	}
 
 	/**
@@ -153,7 +353,12 @@ export class TextGenerationService {
 					completionTokens: result.usage.outputTokens || 0,
 					totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
 				},
-				reasoning: result.reasoningText
+				reasoning: result.reasoningText,
+				mediaResources: await this.extractMediaResources(
+					result.text,
+					result.files || [],
+					result.content || []
+				)
 			};
 		} catch (error) {
 			// generateText 失败（如网络不可达、API Key 无效等）

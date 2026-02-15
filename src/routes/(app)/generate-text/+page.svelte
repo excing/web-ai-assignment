@@ -2,9 +2,17 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Card } from '$lib/components/ui/card';
-	import { Loader2, Send, Sparkles } from 'lucide-svelte';
+	import { Loader2, Send, Sparkles, Image, Video, Music, File, Link } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { marked } from 'marked';
+
+	interface MediaResource {
+		type: 'image' | 'video' | 'audio' | 'file' | 'url';
+		data: string;
+		mimeType?: string;
+		filename?: string;
+		isBase64?: boolean;
+	}
 
 	let input = $state('');
 	let isLoading = $state(false);
@@ -17,6 +25,7 @@
 			totalTokens: number;
 		};
 		reasoning?: string;
+		mediaResources: MediaResource[];
 	} | null>(null);
 
 	async function handleSubmit() {
@@ -67,6 +76,32 @@
 	}
 
 	let renderedHtml = $derived(response ? marked(response.text) : '');
+
+	function getMediaIcon(type: MediaResource['type']) {
+		switch (type) {
+			case 'image':
+				return Image;
+			case 'video':
+				return Video;
+			case 'audio':
+				return Music;
+			case 'url':
+				return Link;
+			default:
+				return File;
+		}
+	}
+
+	function getMediaTypeLabel(type: MediaResource['type']) {
+		const labels = {
+			image: '图片',
+			video: '视频',
+			audio: '音频',
+			file: '文件',
+			url: '链接'
+		};
+		return labels[type];
+	}
 </script>
 
 <div class="container mx-auto max-w-4xl p-6">
@@ -124,6 +159,73 @@
 					<h2 class="mb-4 text-lg font-semibold text-primary">推理过程</h2>
 					<div class="whitespace-pre-wrap text-sm text-muted-foreground">
 						{response.reasoning}
+					</div>
+				</Card>
+			{/if}
+
+			<!-- 多媒体资源 -->
+			{#if response.mediaResources && response.mediaResources.length > 0}
+				<Card class="p-6">
+					<h2 class="mb-4 text-lg font-semibold">多媒体资源 ({response.mediaResources.length})</h2>
+					<div class="space-y-4">
+						{#each response.mediaResources as resource, index}
+							{@const IconComponent = getMediaIcon(resource.type)}
+							<div class="flex items-start gap-4 rounded-lg border p-4">
+								<div class="flex-shrink-0">
+									<IconComponent class="h-6 w-6 text-muted-foreground" />
+								</div>
+								<div class="flex-1 space-y-2">
+									<div class="flex items-center gap-2">
+										<span class="text-sm font-medium">{getMediaTypeLabel(resource.type)}</span>
+										{#if resource.isBase64}
+											<span class="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+												Base64
+											</span>
+										{/if}
+										{#if resource.mimeType}
+											<span class="text-xs text-muted-foreground">{resource.mimeType}</span>
+										{/if}
+									</div>
+									{#if resource.filename}
+										<div class="text-sm text-muted-foreground">{resource.filename}</div>
+									{/if}
+									{#if resource.type === 'image'}
+										<div class="mt-2">
+											<img
+												src={resource.data}
+												alt={resource.filename || '生成的图片'}
+												class="max-h-64 rounded border"
+											/>
+										</div>
+									{:else if resource.type === 'video'}
+										<div class="mt-2">
+											<video src={resource.data} controls class="max-h-64 rounded border">
+												<track kind="captions" />
+											</video>
+										</div>
+									{:else if resource.type === 'audio'}
+										<div class="mt-2">
+											<audio src={resource.data} controls class="w-full">
+												<track kind="captions" />
+											</audio>
+										</div>
+									{:else}
+										<div class="mt-2">
+											<a
+												href={resource.data}
+												target="_blank"
+												rel="noopener noreferrer"
+												class="text-sm text-primary hover:underline"
+											>
+												{resource.data.length > 80
+													? resource.data.substring(0, 80) + '...'
+													: resource.data}
+											</a>
+										</div>
+									{/if}
+								</div>
+							</div>
+						{/each}
 					</div>
 				</Card>
 			{/if}
