@@ -3,7 +3,6 @@ import {
 	Package,
 	Ticket,
 	Server,
-	Sparkles,
 	type Icon,
 } from 'lucide-svelte';
 import type { ComponentType } from 'svelte';
@@ -26,8 +25,7 @@ export interface AdminNavItem extends NavItem {}
 // ─── 功能导航（侧边栏 / 底部 Tab）────────────────────────
 
 export const navItems: NavItem[] = [
-	{ key: 'chat', label: 'Chat', icon: MessageCircle, href: '/chat' },
-	{ key: 'generate-text', label: '文本生成', icon: Sparkles, href: '/generate-text' }
+	{ key: 'chat', label: 'Chat', icon: MessageCircle, href: '/chat' }
 ];
 
 // ─── 管理后台导航（仅 Admin 可见）────────────────────────
