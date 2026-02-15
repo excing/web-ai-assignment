@@ -259,6 +259,48 @@ export class TextGenerationService {
 			resources.push(...downloadedResources.filter((r): r is MediaResource => r !== null));
 		}
 
+		// 6. 提取 HTML 标签中的媒体资源（<img>, <video>, <audio>）
+		const htmlMediaRegex = /<(img|video|audio|source)[^>]+src=["']([^"']+)["'][^>]*>/gi;
+		const htmlMediaUrls: Array<{ tag: string; url: string; alt?: string }> = [];
+		while ((match = htmlMediaRegex.exec(text)) !== null) {
+			const [fullMatch, tag, url] = match;
+			if (url && !url.startsWith('data:')) {
+				// 尝试提取 alt 或 title 属性
+				const altMatch = fullMatch.match(/(?:alt|title)=["']([^"']+)["']/i);
+				htmlMediaUrls.push({
+					tag: tag.toLowerCase(),
+					url,
+					alt: altMatch?.[1]
+				});
+			}
+		}
+
+		if (htmlMediaUrls.length > 0) {
+			// 并行下载所有 HTML 媒体资源
+			const downloadPromises = htmlMediaUrls.map(async ({ tag, url, alt }) => {
+				const result = await this.downloadAndConvertToBase64(url);
+				if (result) {
+					// 根据标签类型判断媒体类型
+					let type: MediaResource['type'] = 'file';
+					if (tag === 'img') type = 'image';
+					else if (tag === 'video' || tag === 'source') type = 'video';
+					else if (tag === 'audio') type = 'audio';
+
+					return {
+						type,
+						data: result.data,
+						mimeType: result.mimeType,
+						filename: alt || undefined,
+						isBase64: true
+					} as MediaResource;
+				}
+				return null;
+			});
+
+			const downloadedResources = await Promise.all(downloadPromises);
+			resources.push(...downloadedResources.filter((r): r is MediaResource => r !== null));
+		}
+
 		return resources;
 	}
 
