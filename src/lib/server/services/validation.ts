@@ -52,20 +52,3 @@ export async function parseRequestBody(request: Request): Promise<ValidationResu
 		};
 	}
 }
-
-/**
- * 验证用户是否已认证
- */
-export function validateAuthentication(session: unknown): ValidationResult<{ user: unknown }> {
-	if (!session || typeof session !== 'object' || !('user' in session) || !session.user) {
-		return {
-			success: false,
-			error: '请先登录后再使用聊天功能'
-		};
-	}
-
-	return {
-		success: true,
-		data: session as { user: unknown }
-	};
-}
