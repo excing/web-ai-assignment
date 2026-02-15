@@ -2,16 +2,10 @@
     import * as Avatar from "$lib/components/ui/avatar";
     import { cn } from "$lib/utils";
     import { getErrorIcon, type ChatError } from "$lib/utils/chat-errors";
-    import { renderMarkdown } from "$lib/utils/markdown";
-    import {
-        Bot,
-        Square,
-        Loader2,
-        RefreshCw,
-        Brain,
-        ChevronDown,
-    } from "lucide-svelte";
+    import { Bot, Loader2, RefreshCw } from "lucide-svelte";
     import type { UIMessage } from "@ai-sdk/svelte";
+    import UserMessage from "./UserMessage.svelte";
+    import AssistantMessage from "./AssistantMessage.svelte";
 
     let {
         messages,
@@ -37,20 +31,12 @@
         if (!name) return "U";
         return name.charAt(0).toUpperCase();
     }
-
-    function isImageFile(part: { type: string; mediaType?: string }): boolean {
-        return part.type === "file" && !!part.mediaType?.startsWith("image/");
-    }
-
-    function isAIGeneratedFile(part: { filename?: string }): boolean {
-        return !part.filename;
-    }
 </script>
 
 <div class="mx-auto max-w-3xl px-4 py-6">
     {#each messages as message, i}
-        {@const isLastAssistantMessage = message.role === "assistant" && i === messages.length - 1}
-        {@const showCursor = isLastAssistantMessage && isStreaming}
+        {@const isLastAssistant = message.role === "assistant" && i === messages.length - 1}
+        {@const showCursor = isLastAssistant && isStreaming}
         <div
             class={cn(
                 "mb-6 flex gap-3",
@@ -61,10 +47,7 @@
             {#if message.role === "user"}
                 <Avatar.Root class="h-8 w-8 flex-shrink-0">
                     {#if user?.image}
-                        <Avatar.Image
-                            src={user.image}
-                            alt={user.name || "用户"}
-                        />
+                        <Avatar.Image src={user.image} alt={user.name || "用户"} />
                     {/if}
                     <Avatar.Fallback class="bg-primary text-primary-foreground text-xs">
                         {getInitials(user?.name)}
@@ -78,104 +61,10 @@
 
             <!-- 消息内容 -->
             <div class="flex max-w-[80%] flex-col gap-2 min-w-0">
-                <!-- 思考过程 -->
-                {#each message.parts as part}
-                    {#if part.type === "reasoning" && part.text}
-                        {@const isThinking = part.state === "streaming"}
-                        <details class="group rounded-xl border border-border/60 bg-muted/40" open={isThinking}>
-                            <summary class="flex cursor-pointer select-none list-none items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
-                                <Brain class="h-3.5 w-3.5 flex-shrink-0" />
-                                {#if isThinking}
-                                    <span class="animate-pulse">思考中...</span>
-                                {:else}
-                                    <span>已深度思考</span>
-                                {/if}
-                                <ChevronDown class="ml-auto h-3.5 w-3.5 transition-transform group-open:rotate-180" />
-                            </summary>
-                            <div class="border-t border-border/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground/80 prose prose-xs max-w-none dark:prose-invert prose-p:my-0.5 prose-pre:my-1">
-                                {@html renderMarkdown(part.text)}
-                                {#if isThinking}
-                                    <span class="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-current align-middle"></span>
-                                {/if}
-                            </div>
-                        </details>
-                    {/if}
-                {/each}
-
-                <!-- 图片 -->
-                {#if message.parts.some((p: { type: string; mediaType?: string }) => isImageFile(p))}
-                    <div class={cn(
-                        "flex flex-wrap gap-2",
-                        message.role === "user" ? "justify-end" : "justify-start"
-                    )}>
-                        {#each message.parts as part}
-                            {#if part.type === "file" && isImageFile(part)}
-                                {@const isAIImage = message.role === "assistant" || isAIGeneratedFile(part)}
-                                <a
-                                    href={part.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class={cn(
-                                        "group/img relative block overflow-hidden rounded-xl border border-border/60",
-                                        isAIImage && "shadow-sm"
-                                    )}
-                                >
-                                    <img
-                                        src={part.url}
-                                        alt={part.filename || "AI 生成的图片"}
-                                        class={cn(
-                                            "max-w-full object-contain transition-opacity group-hover/img:opacity-90",
-                                            isAIImage ? "max-h-96 rounded-xl" : "max-h-64"
-                                        )}
-                                        loading="lazy"
-                                    />
-                                </a>
-                            {/if}
-                        {/each}
-                    </div>
-                {/if}
-
-                <!-- 正文 -->
                 {#if message.role === "user"}
-                    {#if message.parts.some((p: { type: string }) => p.type === "text")}
-                        <div class="rounded-2xl px-4 py-3 bg-primary text-primary-foreground">
-                            {#each message.parts as part}
-                                {#if part.type === "text"}
-                                    <div class="whitespace-pre-wrap break-words">{part.text}</div>
-                                {/if}
-                            {/each}
-                        </div>
-                    {/if}
+                    <UserMessage {message} />
                 {:else}
-                    {#each message.parts as part}
-                        {#if part.type === "text"}
-                            <div
-                                class={cn(
-                                    "prose prose-sm max-w-none dark:prose-invert",
-                                    "prose-p:my-1.5 prose-p:leading-relaxed",
-                                    "prose-code:rounded prose-code:bg-black/10 prose-code:px-1 prose-code:py-0.5 prose-code:before:content-none prose-code:after:content-none dark:prose-code:bg-white/15",
-                                    "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
-                                    "prose-headings:my-3",
-                                )}
-                            >
-                                {@html renderMarkdown(part.text)}
-                                {#if showCursor}
-                                    <span class="ml-0.5 inline-block h-5 w-0.5 animate-pulse bg-current align-middle"></span>
-                                {/if}
-                            </div>
-                        {/if}
-                    {/each}
-                {/if}
-
-                <!-- 停止按钮 -->
-                {#if showCursor}
-                    <button
-                        onclick={onStop}
-                        class="flex w-fit items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                    >
-                        <Square class="h-3 w-3" />
-                        停止生成
-                    </button>
+                    <AssistantMessage {message} {showCursor} {onStop} />
                 {/if}
             </div>
         </div>
