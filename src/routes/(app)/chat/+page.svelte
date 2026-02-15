@@ -390,9 +390,14 @@
         return name.charAt(0).toUpperCase();
     }
 
-    // 判断是否为图片类型的文件 part
+    // 判断是否为图片类型的文件 part（用户上传 & AI 生成均适用）
     function isImageFile(part: { type: string; mediaType?: string }): boolean {
         return part.type === "file" && !!part.mediaType?.startsWith("image/");
+    }
+
+    // 判断 file part 是否来自 AI（无 filename 或有 providerMetadata）
+    function isAIGeneratedFile(part: { filename?: string }): boolean {
+        return !part.filename;
     }
 </script>
 
@@ -531,7 +536,7 @@
                                 {/if}
                             {/each}
 
-                            <!-- 图片附件（file parts）-->
+                            <!-- 图片（用户附件 & AI 生成均在此渲染） -->
                             {#if message.parts.some(p => isImageFile(p))}
                                 <div class={cn(
                                     "flex flex-wrap gap-2",
@@ -539,16 +544,23 @@
                                 )}>
                                     {#each message.parts as part}
                                         {#if part.type === "file" && isImageFile(part)}
+                                            {@const isAIImage = message.role === "assistant" || isAIGeneratedFile(part)}
                                             <a
                                                 href={part.url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                class="group/img relative block overflow-hidden rounded-xl border border-border/60"
+                                                class={cn(
+                                                    "group/img relative block overflow-hidden rounded-xl border border-border/60",
+                                                    isAIImage && "shadow-sm"
+                                                )}
                                             >
                                                 <img
                                                     src={part.url}
-                                                    alt={part.filename || "图片"}
-                                                    class="max-h-64 max-w-full object-contain transition-opacity group-hover/img:opacity-90"
+                                                    alt={part.filename || "AI 生成的图片"}
+                                                    class={cn(
+                                                        "max-w-full object-contain transition-opacity group-hover/img:opacity-90",
+                                                        isAIImage ? "max-h-96 rounded-xl" : "max-h-64"
+                                                    )}
                                                     loading="lazy"
                                                 />
                                             </a>
