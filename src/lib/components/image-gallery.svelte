@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { X, ChevronLeft, ChevronRight, Download } from 'lucide-svelte';
-	import { Button } from '$lib/components/ui/button';
+	import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from 'lucide-svelte';
 	import type { MediaResource } from '$lib/stores/task-manager.svelte';
 
 	interface Props {
@@ -14,21 +13,195 @@
 	let currentIndex = $state(initialIndex);
 	let currentImage = $derived(images[currentIndex]);
 
+	// ── 缩放与平移 ──
+	const MIN_SCALE = 0.5;
+	const MAX_SCALE = 5;
+	const ZOOM_STEP = 0.25;
+
+	let scale = $state(1);
+	let translateX = $state(0);
+	let translateY = $state(0);
+	let isDragging = $state(false);
+	let dragStartX = $state(0);
+	let dragStartY = $state(0);
+	let lastTranslateX = $state(0);
+	let lastTranslateY = $state(0);
+
+	// ── 触摸手势状态 ──
+	let isTouching = $state(false);
+	let touchCount = $state(0);
+	let touchStartDistance = $state(0);
+	let touchStartScale = $state(1);
+
+	// 滑动切换检测
+	let swipeStartX = $state(0);
+	let swipeStartY = $state(0);
+	let swipeStartTime = $state(0);
+	const SWIPE_THRESHOLD = 50;
+	const SWIPE_VELOCITY = 0.3;
+
+	let isZoomed = $derived(scale !== 1);
+	let scalePercent = $derived(Math.round(scale * 100));
+
+	function resetTransform() {
+		scale = 1;
+		translateX = 0;
+		translateY = 0;
+	}
+
+	function zoomIn() {
+		scale = Math.min(scale + ZOOM_STEP, MAX_SCALE);
+		if (scale === 1) { translateX = 0; translateY = 0; }
+	}
+
+	function zoomOut() {
+		scale = Math.max(scale - ZOOM_STEP, MIN_SCALE);
+		if (scale <= 1) { translateX = 0; translateY = 0; }
+	}
+
+	function handleWheel(e: WheelEvent) {
+		e.preventDefault();
+		if (e.deltaY < 0) zoomIn();
+		else zoomOut();
+	}
+
+	function handleDoubleClick() {
+		if (isZoomed) {
+			resetTransform();
+		} else {
+			scale = 2;
+		}
+	}
+
+	// ── 拖拽平移（鼠标，仅缩放时） ──
+	function handlePointerDown(e: PointerEvent) {
+		if (e.pointerType === 'touch') return; // 触摸由 touch 事件处理
+		if (!isZoomed) return;
+		isDragging = true;
+		dragStartX = e.clientX;
+		dragStartY = e.clientY;
+		lastTranslateX = translateX;
+		lastTranslateY = translateY;
+		(e.target as HTMLElement).setPointerCapture(e.pointerId);
+	}
+
+	function handlePointerMove(e: PointerEvent) {
+		if (e.pointerType === 'touch') return;
+		if (!isDragging) return;
+		translateX = lastTranslateX + (e.clientX - dragStartX);
+		translateY = lastTranslateY + (e.clientY - dragStartY);
+	}
+
+	function handlePointerUp(e: PointerEvent) {
+		if (e.pointerType === 'touch') return;
+		isDragging = false;
+	}
+
+	// ── 触摸手势 ──
+	function getTouchDistance(t1: Touch, t2: Touch): number {
+		const dx = t1.clientX - t2.clientX;
+		const dy = t1.clientY - t2.clientY;
+		return Math.sqrt(dx * dx + dy * dy);
+	}
+
+	function handleTouchStart(e: TouchEvent) {
+		touchCount = e.touches.length;
+
+		if (e.touches.length === 2) {
+			// 双指：捏合缩放
+			e.preventDefault();
+			touchStartDistance = getTouchDistance(e.touches[0], e.touches[1]);
+			touchStartScale = scale;
+			isTouching = true;
+		} else if (e.touches.length === 1) {
+			const touch = e.touches[0];
+			// 记录滑动起点（无论是否缩放）
+			swipeStartX = touch.clientX;
+			swipeStartY = touch.clientY;
+			swipeStartTime = Date.now();
+
+			if (isZoomed) {
+				// 缩放状态：单指拖拽平移
+				dragStartX = touch.clientX;
+				dragStartY = touch.clientY;
+				lastTranslateX = translateX;
+				lastTranslateY = translateY;
+				isTouching = true;
+			}
+		}
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		if (e.touches.length === 2) {
+			// 捏合缩放
+			e.preventDefault();
+			const dist = getTouchDistance(e.touches[0], e.touches[1]);
+			const ratio = dist / touchStartDistance;
+			scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, touchStartScale * ratio));
+			if (scale <= 1) {
+				translateX = 0;
+				translateY = 0;
+			}
+		} else if (e.touches.length === 1 && isZoomed && isTouching) {
+			// 缩放时单指平移
+			e.preventDefault();
+			const touch = e.touches[0];
+			translateX = lastTranslateX + (touch.clientX - dragStartX);
+			translateY = lastTranslateY + (touch.clientY - dragStartY);
+		}
+	}
+
+	function handleTouchEnd(e: TouchEvent) {
+		// 滑动切换检测（单指、未缩放）
+		if (e.changedTouches.length === 1 && !isZoomed && touchCount === 1) {
+			const touch = e.changedTouches[0];
+			const dx = touch.clientX - swipeStartX;
+			const dy = touch.clientY - swipeStartY;
+			const dt = Date.now() - swipeStartTime;
+			const velocity = Math.abs(dx) / dt;
+
+			if (
+				Math.abs(dx) > SWIPE_THRESHOLD &&
+				Math.abs(dx) > Math.abs(dy) * 2 &&
+				velocity > SWIPE_VELOCITY
+			) {
+				if (dx > 0) prevImage();
+				else nextImage();
+			}
+		}
+
+		isTouching = false;
+		touchCount = e.touches.length;
+	}
+
+	// ── 导航 ──
 	function nextImage() {
 		currentIndex = (currentIndex + 1) % images.length;
+		resetTransform();
 	}
 
 	function prevImage() {
 		currentIndex = (currentIndex - 1 + images.length) % images.length;
+		resetTransform();
+	}
+
+	// ── 背景点击：缩放中先重置，否则关闭 ──
+	function handleBackdropClick() {
+		if (isZoomed) {
+			resetTransform();
+		} else {
+			onClose();
+		}
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
-			onClose();
-		} else if (e.key === 'ArrowRight') {
-			nextImage();
-		} else if (e.key === 'ArrowLeft') {
-			prevImage();
+		switch (e.key) {
+			case 'Escape': onClose(); break;
+			case 'ArrowRight': nextImage(); break;
+			case 'ArrowLeft': prevImage(); break;
+			case '+': case '=': e.preventDefault(); zoomIn(); break;
+			case '-': e.preventDefault(); zoomOut(); break;
+			case '0': e.preventDefault(); resetTransform(); break;
 		}
 	}
 
@@ -45,132 +218,153 @@
 <svelte:window onkeydown={handleKeyDown} />
 
 <!-- 背景遮罩 -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm"
-	onclick={onClose}
-	role="button"
-	tabindex="-1"
+	class="fixed inset-0 z-[100] flex flex-col bg-black/95"
 	onkeydown={(e) => e.key === 'Enter' && onClose()}
 >
-	<!-- 关闭按钮 -->
-	<Button
-		variant="ghost"
-		size="icon"
-		class="absolute right-4 top-4 text-white hover:bg-white/10"
-		onclick={onClose}
-	>
-		<X class="h-6 w-6" />
-	</Button>
-
-	<!-- 下载按钮 -->
-	<Button
-		variant="ghost"
-		size="icon"
-		class="absolute right-16 top-4 text-white hover:bg-white/10"
-		onclick={(e) => {
-			e.stopPropagation();
-			downloadImage();
-		}}
-	>
-		<Download class="h-6 w-6" />
-	</Button>
-
-	<!-- 图片计数 -->
-	{#if images.length > 1}
-		<div class="absolute left-4 top-4 rounded-full bg-black/50 px-4 py-2 text-sm text-white">
-			{currentIndex + 1} / {images.length}
+	<!-- ── 顶部工具栏 ── -->
+	<div class="relative z-10 flex items-center justify-between px-4 py-3">
+		<!-- 左侧：图片计数 -->
+		<div class="min-w-[80px]">
+			{#if images.length > 1}
+				<span class="text-sm tabular-nums text-white/70">
+					{currentIndex + 1} / {images.length}
+				</span>
+			{/if}
 		</div>
-	{/if}
 
-	<!-- 图片容器 -->
+		<!-- 中间：缩放控件 -->
+		<div class="flex items-center gap-1 rounded-full bg-white/10 px-1 py-1 backdrop-blur-sm">
+			<button
+				onclick={(e) => { e.stopPropagation(); zoomOut(); }}
+				disabled={scale <= MIN_SCALE}
+				class="flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:text-white/30"
+			>
+				<ZoomOut class="h-4 w-4" />
+			</button>
+			<button
+				onclick={(e) => { e.stopPropagation(); resetTransform(); }}
+				class="min-w-[52px] rounded-full px-2 py-1 text-center text-xs tabular-nums text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+			>
+				{scalePercent}%
+			</button>
+			<button
+				onclick={(e) => { e.stopPropagation(); zoomIn(); }}
+				disabled={scale >= MAX_SCALE}
+				class="flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:text-white/30"
+			>
+				<ZoomIn class="h-4 w-4" />
+			</button>
+		</div>
+
+		<!-- 右侧：下载 + 关闭 -->
+		<div class="flex min-w-[80px] items-center justify-end gap-1">
+			<button
+				onclick={(e) => { e.stopPropagation(); downloadImage(); }}
+				class="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+			>
+				<Download class="h-5 w-5" />
+			</button>
+			<button
+				onclick={(e) => { e.stopPropagation(); onClose(); }}
+				class="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+			>
+				<X class="h-5 w-5" />
+			</button>
+		</div>
+	</div>
+
+	<!-- ── 图片区域 ── -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="flex h-full items-center justify-center p-4"
-		onclick={(e) => e.stopPropagation()}
+		class="relative flex flex-1 items-center justify-center overflow-hidden"
+		onclick={handleBackdropClick}
+		onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleBackdropClick(); }}
+		onwheel={handleWheel}
 		role="button"
 		tabindex="-1"
-		onkeydown={(e) => e.stopPropagation()}
 	>
-		<div class="relative max-h-full max-w-full">
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="relative select-none"
+			style="touch-action: none; transform: scale({scale}) translate({translateX / scale}px, {translateY / scale}px); transition: {isDragging || isTouching ? 'none' : 'transform 0.2s ease'};"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+			ondblclick={handleDoubleClick}
+			onpointerdown={handlePointerDown}
+			onpointermove={handlePointerMove}
+			onpointerup={handlePointerUp}
+			onpointercancel={handlePointerUp}
+			ontouchstart={handleTouchStart}
+			ontouchmove={handleTouchMove}
+			ontouchend={handleTouchEnd}
+			ontouchcancel={handleTouchEnd}
+			role="button"
+			tabindex="-1"
+		>
 			{#if currentImage.type === 'image'}
 				<img
 					src={currentImage.data}
 					alt={currentImage.filename || `图片 ${currentIndex + 1}`}
-					class="max-h-[90vh] max-w-[90vw] object-contain"
+					class="max-h-[85vh] max-w-[90vw] object-contain"
+					draggable="false"
+					style="cursor: {isZoomed ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in'};"
 				/>
 			{:else if currentImage.type === 'video'}
 				<video
 					src={currentImage.data}
 					controls
-					class="max-h-[90vh] max-w-[90vw]"
+					class="max-h-[85vh] max-w-[90vw]"
 					autoplay
 				>
 					<track kind="captions" />
 				</video>
 			{/if}
-
-			<!-- 图片信息 -->
-			{#if currentImage.filename || currentImage.mimeType}
-				<div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-					{#if currentImage.filename}
-						<p class="text-sm font-medium text-white">{currentImage.filename}</p>
-					{/if}
-					{#if currentImage.mimeType}
-						<p class="text-xs text-white/70">{currentImage.mimeType}</p>
-					{/if}
-				</div>
-			{/if}
 		</div>
+
+		<!-- 导航按钮 -->
+		{#if images.length > 1}
+			<button
+				class="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white/80 backdrop-blur-sm transition-all hover:bg-black/60 hover:text-white"
+				onclick={(e) => { e.stopPropagation(); prevImage(); }}
+			>
+				<ChevronLeft class="h-6 w-6" />
+			</button>
+			<button
+				class="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white/80 backdrop-blur-sm transition-all hover:bg-black/60 hover:text-white"
+				onclick={(e) => { e.stopPropagation(); nextImage(); }}
+			>
+				<ChevronRight class="h-6 w-6" />
+			</button>
+		{/if}
 	</div>
 
-	<!-- 导航按钮 -->
+	<!-- ── 底部缩略图 ── -->
 	{#if images.length > 1}
-		<Button
-			variant="ghost"
-			size="icon"
-			class="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/10"
-			onclick={(e) => {
-				e.stopPropagation();
-				prevImage();
-			}}
-		>
-			<ChevronLeft class="h-8 w-8" />
-		</Button>
-
-		<Button
-			variant="ghost"
-			size="icon"
-			class="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/10"
-			onclick={(e) => {
-				e.stopPropagation();
-				nextImage();
-			}}
-		>
-			<ChevronRight class="h-8 w-8" />
-		</Button>
-	{/if}
-
-	<!-- 缩略图导航 -->
-	{#if images.length > 1}
-		<div class="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 overflow-x-auto rounded-lg bg-black/50 p-2">
-			{#each images as image, index}
-				<button
-					class="h-16 w-16 flex-shrink-0 overflow-hidden rounded border-2 transition-all {index === currentIndex
-						? 'border-white'
-						: 'border-transparent opacity-50 hover:opacity-100'}"
-					onclick={(e) => {
-						e.stopPropagation();
-						currentIndex = index;
-					}}
-				>
-					{#if image.type === 'image'}
-						<img
-							src={image.data}
-							alt={`缩略图 ${index + 1}`}
-							class="h-full w-full object-cover"
-						/>
-					{/if}
-				</button>
-			{/each}
+		<div class="flex justify-center px-4 py-3">
+			<div class="flex gap-2 overflow-x-auto rounded-xl bg-white/5 p-2 backdrop-blur-sm">
+				{#each images as image, index}
+					<button
+						class="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all {index === currentIndex
+							? 'border-white shadow-lg shadow-white/10'
+							: 'border-transparent opacity-50 hover:opacity-80'}"
+						onclick={(e) => {
+							e.stopPropagation();
+							currentIndex = index;
+							resetTransform();
+						}}
+					>
+						{#if image.type === 'image'}
+							<img
+								src={image.data}
+								alt={`缩略图 ${index + 1}`}
+								class="h-full w-full object-cover"
+							/>
+						{/if}
+					</button>
+				{/each}
+			</div>
 		</div>
 	{/if}
 </div>
