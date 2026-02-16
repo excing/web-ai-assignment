@@ -13,16 +13,22 @@
 		RefreshCw,
 		Clock,
 		CheckCircle2,
-		XCircle
+		XCircle,
+		Paperclip,
+		X
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { taskManager, type MediaResource } from '$lib/stores/task-manager.svelte';
 	import ImageGallery from '$lib/components/image-gallery.svelte';
+	import { CHAT_ATTACHMENTS } from '$lib/config/constants';
 
 	let input = $state('');
 	let galleryImages = $state<MediaResource[]>([]);
 	let galleryInitialIndex = $state(0);
 	let showGallery = $state(false);
+	let fileInputRef = $state<HTMLInputElement | null>(null);
+	let attachedFiles = $state<Array<{ id: string; file: File; previewUrl: string }>>([]);
+	let isDragging = $state(false);
 
 	function openGallery(images: MediaResource[], index: number) {
 		galleryImages = images;
@@ -38,18 +44,96 @@
 		const trimmedInput = input.trim();
 		console.log('handleSubmit called, input:', trimmedInput);
 
-		if (!trimmedInput) {
-			console.log('Input is empty, returning');
+		if (!trimmedInput && attachedFiles.length === 0) {
+			console.log('Input and files are empty, returning');
+			toast.error('请输入描述或上传图片');
 			return;
 		}
 
 		console.log('Creating task with prompt:', trimmedInput);
-		taskManager.createTask(trimmedInput);
+		taskManager.createTask(trimmedInput, attachedFiles.map((f) => f.file));
 		input = '';
+
+		// 清理附件预览 URL
+		attachedFiles.forEach((f) => URL.revokeObjectURL(f.previewUrl));
+		attachedFiles = [];
 
 		toast.success('任务已添加到队列', {
 			description: '正在后台生成，完成后会通知你'
 		});
+	}
+
+	function handleFileSelect(e: Event) {
+		const target = e.target as HTMLInputElement;
+		if (target.files) {
+			addFiles(Array.from(target.files));
+			target.value = '';
+		}
+	}
+
+	function addFiles(files: File[]) {
+		for (const file of files) {
+			// 检查数量上限
+			if (attachedFiles.length >= CHAT_ATTACHMENTS.MAX_FILES) {
+				toast.error(`最多同时上传 ${CHAT_ATTACHMENTS.MAX_FILES} 张图片`);
+				break;
+			}
+
+			// 验证文件类型
+			if (!CHAT_ATTACHMENTS.ALLOWED_TYPES.includes(file.type)) {
+				toast.error(`不支持的文件类型: ${file.type || '未知'}`);
+				continue;
+			}
+
+			// 验证文件大小
+			if (file.size > CHAT_ATTACHMENTS.MAX_FILE_SIZE) {
+				toast.error(`文件过大: ${file.name}（上限 ${CHAT_ATTACHMENTS.MAX_SIZE_LABEL}）`);
+				continue;
+			}
+
+			// 检查是否已添加（按名称+大小去重）
+			if (attachedFiles.some((f) => f.file.name === file.name && f.file.size === file.size)) {
+				toast.error(`文件已添加: ${file.name}`);
+				continue;
+			}
+
+			// 添加文件
+			const id = `file-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+			const previewUrl = URL.createObjectURL(file);
+			attachedFiles = [...attachedFiles, { id, file, previewUrl }];
+		}
+	}
+
+	function removeFile(id: string) {
+		const item = attachedFiles.find((f) => f.id === id);
+		if (item) {
+			URL.revokeObjectURL(item.previewUrl);
+		}
+		attachedFiles = attachedFiles.filter((f) => f.id !== id);
+	}
+
+	function openFilePicker() {
+		fileInputRef?.click();
+	}
+
+	// ── 拖放支持 ──
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		isDragging = true;
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		e.preventDefault();
+		isDragging = false;
+	}
+
+	function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		isDragging = false;
+		if (e.dataTransfer?.files) {
+			const images = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
+			if (images.length > 0) addFiles(images);
+		}
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
@@ -137,7 +221,7 @@
 				<ImageIcon class="h-8 w-8 text-primary" />
 				AI 图片生成
 			</h1>
-			<p class="text-muted-foreground">使用 AI 生成精美图片，支持多任务并发</p>
+			<p class="text-muted-foreground">使用 AI 生成精美图片，支持上传参考图片（图生图）和多任务并发</p>
 		</div>
 
 		<!-- 任务统计 -->
@@ -172,7 +256,13 @@
 	</div>
 
 	<!-- 输入区域 -->
-	<Card class="mb-6 p-6">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<Card
+		class="mb-6 p-6 transition-colors {isDragging ? 'border-primary border-2 bg-primary/5' : ''}"
+		ondragover={handleDragOver}
+		ondragleave={handleDragLeave}
+		ondrop={handleDrop}
+	>
 		<div class="space-y-4">
 			<div>
 				<label for="prompt" class="mb-2 block text-sm font-medium">描述你想要的图片</label>
@@ -180,10 +270,42 @@
 					id="prompt"
 					bind:value={input}
 					onkeydown={handleKeyDown}
-					placeholder="例如：一只可爱的猫咪在花园里玩耍&#10;&#10;提示：按 Ctrl/Cmd + Enter 快速生成"
+					placeholder="例如：一只可爱的猫咪在花园里玩耍&#10;&#10;提示：按 Ctrl/Cmd + Enter 快速生成，支持拖拽图片到此处"
 					class="min-h-[120px] resize-none"
 				/>
 			</div>
+
+			{#if isDragging}
+				<div class="flex items-center justify-center rounded-lg border-2 border-dashed border-primary/50 py-6 text-sm text-primary">
+					松开即可添加图片
+				</div>
+			{/if}
+
+			<!-- 附件预览 -->
+			{#if attachedFiles.length > 0}
+				<div>
+					<p class="mb-2 text-sm font-medium">
+						已添加的图片 ({attachedFiles.length}/{CHAT_ATTACHMENTS.MAX_FILES})
+					</p>
+					<div class="flex flex-wrap gap-2">
+						{#each attachedFiles as file}
+							<div class="group relative h-20 w-20 overflow-hidden rounded-lg border">
+								<img
+									src={file.previewUrl}
+									alt={file.file.name}
+									class="h-full w-full object-cover"
+								/>
+								<button
+									class="absolute right-1 top-1 rounded-full bg-black/50 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+									onclick={() => removeFile(file.id)}
+								>
+									<X class="h-3 w-3 text-white" />
+								</button>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
 
 			<!-- 快捷提示词 -->
 			<div>
@@ -212,8 +334,18 @@
 					</Button>
 				{/if}
 				<Button
+					variant="outline"
+					size="sm"
+					onclick={openFilePicker}
+					class="gap-2"
+					type="button"
+				>
+					<Paperclip class="h-4 w-4" />
+					添加图片
+				</Button>
+				<Button
 					onclick={handleSubmit}
-					disabled={!input.trim()}
+					disabled={!input.trim() && attachedFiles.length === 0}
 					class="gap-2"
 					type="button"
 				>
@@ -246,6 +378,18 @@
 									</span>
 								</div>
 								<p class="text-sm">{task.prompt}</p>
+								{#if task.attachedPreviews && task.attachedPreviews.length > 0}
+									<div class="mt-2 flex gap-1.5">
+										<span class="shrink-0 text-xs text-muted-foreground leading-[2.5rem]">参考图：</span>
+										{#each task.attachedPreviews as preview, i}
+											<img
+												src={preview}
+												alt="参考图 {i + 1}"
+												class="h-10 w-10 rounded border object-cover"
+											/>
+										{/each}
+									</div>
+								{/if}
 								{#if task.error}
 									<p class="mt-2 text-sm text-red-500">{task.error}</p>
 								{/if}
@@ -364,11 +508,21 @@
 		<Card class="p-12 text-center">
 			<ImageIcon class="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
 			<h3 class="mb-2 text-lg font-semibold">开始创作</h3>
-			<p class="text-muted-foreground">输入描述，让 AI 为你生成精美图片</p>
-			<p class="mt-2 text-sm text-muted-foreground">支持多任务并发，可以切换到其他页面继续浏览</p>
+			<p class="text-muted-foreground">输入描述或上传参考图片，让 AI 为你生成精美图片</p>
+			<p class="mt-2 text-sm text-muted-foreground">支持图生图、多任务并发，可以切换到其他页面继续浏览</p>
 		</Card>
 	{/if}
 </div>
+
+<!-- 隐藏的文件选择器 -->
+<input
+	bind:this={fileInputRef}
+	type="file"
+	accept={CHAT_ATTACHMENTS.ALLOWED_TYPES.join(',')}
+	multiple
+	class="hidden"
+	onchange={handleFileSelect}
+/>
 
 <!-- 图片画廊 -->
 {#if showGallery}

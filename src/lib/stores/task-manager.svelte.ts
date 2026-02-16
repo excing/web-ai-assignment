@@ -13,6 +13,10 @@ export interface GenerationTask {
 	prompt: string;
 	status: 'pending' | 'loading' | 'success' | 'error';
 	mediaResources: MediaResource[];
+	/** 用户上传的参考图片（图生图） */
+	attachedFiles?: File[];
+	/** 附件预览 URL（base64 data URL，用于任务卡展示） */
+	attachedPreviews?: string[];
 	error?: string;
 	createdAt: number;
 	completedAt?: number;
@@ -25,23 +29,47 @@ class TaskManager {
 	private runningTasks = 0;
 
 	/**
+	 * 将 File 转换为 base64 data URL
+	 */
+	private fileToDataUrl(file: File): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = () => resolve(reader.result as string);
+			reader.onerror = reject;
+			reader.readAsDataURL(file);
+		});
+	}
+
+	/**
 	 * 创建新任务
 	 */
-	createTask(prompt: string): string {
-		console.log('TaskManager.createTask called with prompt:', prompt);
+	createTask(prompt: string, files?: File[]): string {
+		console.log('TaskManager.createTask called with prompt:', prompt, 'files:', files?.length);
 
 		// 生成唯一 ID（兼容不支持 crypto.randomUUID 的环境）
 		const id = typeof crypto !== 'undefined' && crypto.randomUUID
 			? crypto.randomUUID()
 			: `task-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
+		const validFiles = files?.filter((f) => f.size > 0) || [];
+
 		const task: GenerationTask = {
 			id,
-			prompt,
+			prompt: prompt || (validFiles.length > 0 ? '基于参考图片生成' : ''),
 			status: 'pending',
 			mediaResources: [],
+			attachedFiles: validFiles.length > 0 ? validFiles : undefined,
 			createdAt: Date.now()
 		};
+
+		// 异步生成附件预览（不阻塞任务创建）
+		if (validFiles.length > 0) {
+			Promise.all(validFiles.map((f) => this.fileToDataUrl(f))).then((previews) => {
+				this.tasks = this.tasks.map((t) =>
+					t.id === id ? { ...t, attachedPreviews: previews } : t
+				);
+			});
+		}
 
 		console.log('Created task:', task);
 		this.tasks = [task, ...this.tasks];
@@ -71,8 +99,8 @@ class TaskManager {
 		this.updateTaskStatus(task.id, 'loading');
 
 		try {
-			// 执行任务
-			const result = await this.executeTask(task.prompt);
+			// 执行任务（传递附件文件）
+			const result = await this.executeTask(task.prompt, task.attachedFiles);
 
 			// 更新任务结果
 			this.updateTaskResult(task.id, result.mediaResources);
@@ -106,9 +134,41 @@ class TaskManager {
 	}
 
 	/**
-	 * 执行任务
+	 * 执行任务（支持附件图片的图生图）
 	 */
-	private async executeTask(prompt: string): Promise<{ mediaResources: MediaResource[] }> {
+	private async executeTask(
+		prompt: string,
+		files?: File[]
+	): Promise<{ mediaResources: MediaResource[] }> {
+		// 构建消息 parts
+		const parts: Array<Record<string, unknown>> = [];
+
+		// 添加文本 part
+		if (prompt) {
+			parts.push({ type: 'text', text: prompt });
+		}
+
+		// 将附件文件转为 base64 data URL 并作为 file parts 发送
+		if (files && files.length > 0) {
+			const fileParts = await Promise.all(
+				files.map(async (file) => {
+					const dataUrl = await this.fileToDataUrl(file);
+					return {
+						type: 'file',
+						mediaType: file.type,
+						filename: file.name,
+						url: dataUrl
+					};
+				})
+			);
+			parts.push(...fileParts);
+		}
+
+		// 确保至少有一个 part
+		if (parts.length === 0) {
+			parts.push({ type: 'text', text: '生成一张图片' });
+		}
+
 		const res = await fetch('/api/generate-text', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -116,12 +176,7 @@ class TaskManager {
 				messages: [
 					{
 						role: 'user',
-						parts: [
-							{
-								type: 'text',
-								text: prompt
-							}
-						]
+						parts
 					}
 				]
 			})
