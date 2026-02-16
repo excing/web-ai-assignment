@@ -1,4 +1,7 @@
 import { toast } from 'svelte-sonner';
+import { refreshCurrentUser } from './auth.svelte';
+import { fetchCreditBalance } from './credits.svelte';
+
 
 export interface MediaResource {
 	type: 'image' | 'video' | 'audio' | 'file' | 'url';
@@ -207,6 +210,15 @@ class TaskManager {
 				? { ...t, status: 'success' as const, mediaResources, completedAt: Date.now() }
 				: t
 		);
+		// 任务成功后刷新用户信息和积分余额
+		Promise.all([
+			refreshCurrentUser().catch((err) => {
+				console.error('Failed to refresh user info after task completion:', err);
+			}),
+			fetchCreditBalance().catch((err) => {
+				console.error('Failed to fetch credit balance after task completion:', err);
+			})
+		]);
 	}
 
 	/**
