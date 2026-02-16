@@ -17,7 +17,7 @@ export const textGenerationBillingStrategy: BillingStrategy = {
 		const cost = getTextGenerationCreditCost();
 		return {
 			estimatedCost: cost,
-			description: `文本生成 - ${cost} 积分`,
+			description: `图像生成 - ${cost} 积分`,
 		};
 	},
 
@@ -25,7 +25,7 @@ export const textGenerationBillingStrategy: BillingStrategy = {
 		const cost = getTextGenerationCreditCost();
 		return {
 			amount: cost,
-			description: '文本生成扣费',
+			description: '图像生成扣费',
 			metadata: {
 				type: 'text-generation',
 				fixedCost: cost,

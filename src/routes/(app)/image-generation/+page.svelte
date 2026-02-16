@@ -161,10 +161,10 @@
 	}
 
 	const quickPrompts = [
-		{ icon: Palette, text: '可爱猫咪', prompt: '一只可爱的猫咪在花园里玩耍，水彩画风格' },
-		{ icon: Sparkles, text: '未来城市', prompt: '未来城市的夜景，霓虹灯闪烁，赛博朋克' },
-		{ icon: Mountain, text: '湖边日落', prompt: '宁静的湖边日落景色，油画质感' },
-		{ icon: Rocket, text: '太空站', prompt: '科幻风格的太空站，星空背景' }
+		{ icon: Palette, text: '可爱猫咪', prompt: '生成图片: 一只可爱的猫咪在花园里玩耍，水彩画风格' },
+		{ icon: Sparkles, text: '未来城市', prompt: '生成图片: 未来城市的夜景，霓虹灯闪烁，赛博朋克' },
+		{ icon: Mountain, text: '湖边日落', prompt: '生成图片: 宁静的湖边日落景色，油画质感' },
+		{ icon: Rocket, text: '太空站', prompt: '生成图片: 科幻风格的太空站，星空背景' }
 	];
 
 	function useQuickPrompt(prompt: string) {
