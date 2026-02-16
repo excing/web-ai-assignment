@@ -1,26 +1,25 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Card } from '$lib/components/ui/card';
-	import { Badge } from '$lib/components/ui/badge';
 	import {
 		Loader2,
 		Send,
 		ImageIcon,
 		Download,
-		ExternalLink,
 		Trash2,
 		RefreshCw,
-		Clock,
-		CheckCircle2,
-		XCircle,
 		Paperclip,
-		X
+		X,
+		Sparkles,
+		Palette,
+		Mountain,
+		Rocket
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { taskManager, type MediaResource } from '$lib/stores/task-manager.svelte';
 	import ImageGallery from '$lib/components/image-gallery.svelte';
-	import { CHAT_ATTACHMENTS } from '$lib/config/constants';
+	import { CHAT_ATTACHMENTS, UI } from '$lib/config/constants';
+	import { cn } from '$lib/utils';
 
 	let input = $state('');
 	let galleryImages = $state<MediaResource[]>([]);
@@ -29,6 +28,7 @@
 	let fileInputRef = $state<HTMLInputElement | null>(null);
 	let attachedFiles = $state<Array<{ id: string; file: File; previewUrl: string }>>([]);
 	let isDragging = $state(false);
+	let textareaRef = $state<HTMLTextAreaElement | null>(null);
 
 	function openGallery(images: MediaResource[], index: number) {
 		galleryImages = images;
@@ -143,6 +143,13 @@
 		}
 	}
 
+	function autoResize() {
+		if (textareaRef) {
+			textareaRef.style.height = 'auto';
+			textareaRef.style.height = Math.min(textareaRef.scrollHeight, UI.TEXTAREA_MAX_HEIGHT) + 'px';
+		}
+	}
+
 	function downloadImage(data: string, filename: string, index: number) {
 		const link = document.createElement('a');
 		link.href = data;
@@ -154,59 +161,14 @@
 	}
 
 	const quickPrompts = [
-		'一只可爱的猫咪在花园里玩耍',
-		'未来城市的夜景，霓虹灯闪烁',
-		'宁静的湖边日落景色',
-		'科幻风格的太空站'
+		{ icon: Palette, text: '可爱猫咪', prompt: '一只可爱的猫咪在花园里玩耍，水彩画风格' },
+		{ icon: Sparkles, text: '未来城市', prompt: '未来城市的夜景，霓虹灯闪烁，赛博朋克' },
+		{ icon: Mountain, text: '湖边日落', prompt: '宁静的湖边日落景色，油画质感' },
+		{ icon: Rocket, text: '太空站', prompt: '科幻风格的太空站，星空背景' }
 	];
 
 	function useQuickPrompt(prompt: string) {
 		input = prompt;
-	}
-
-	function getStatusIcon(status: string) {
-		switch (status) {
-			case 'pending':
-				return Clock;
-			case 'loading':
-				return Loader2;
-			case 'success':
-				return CheckCircle2;
-			case 'error':
-				return XCircle;
-			default:
-				return Clock;
-		}
-	}
-
-	function getStatusColor(status: string) {
-		switch (status) {
-			case 'pending':
-				return 'bg-yellow-500/10 text-yellow-500';
-			case 'loading':
-				return 'bg-blue-500/10 text-blue-500';
-			case 'success':
-				return 'bg-green-500/10 text-green-500';
-			case 'error':
-				return 'bg-red-500/10 text-red-500';
-			default:
-				return 'bg-gray-500/10 text-gray-500';
-		}
-	}
-
-	function getStatusLabel(status: string) {
-		switch (status) {
-			case 'pending':
-				return '等待中';
-			case 'loading':
-				return '生成中';
-			case 'success':
-				return '已完成';
-			case 'error':
-				return '失败';
-			default:
-				return '未知';
-		}
 	}
 
 	let stats = $derived(taskManager.stats);
@@ -214,304 +176,220 @@
 
 </script>
 
-<div class="container mx-auto max-w-6xl p-6">
-	<div class="mb-6 flex items-start justify-between">
-		<div>
-			<h1 class="mb-2 flex items-center gap-2 text-3xl font-bold">
-				<ImageIcon class="h-8 w-8 text-primary" />
-				AI 图片生成
-			</h1>
-			<p class="text-muted-foreground">使用 AI 生成精美图片，支持上传参考图片（图生图）和多任务并发</p>
-		</div>
-
-		<!-- 任务统计 -->
-		{#if stats.total > 0}
-			<div class="flex gap-2">
-				{#if stats.loading > 0}
-					<Badge variant="outline" class="gap-1">
-						<Loader2 class="h-3 w-3 animate-spin" />
-						生成中 {stats.loading}
-					</Badge>
-				{/if}
-				{#if stats.pending > 0}
-					<Badge variant="outline" class="gap-1">
-						<Clock class="h-3 w-3" />
-						等待 {stats.pending}
-					</Badge>
-				{/if}
-				{#if stats.success > 0}
-					<Badge variant="outline" class="gap-1 border-green-500/50 text-green-500">
-						<CheckCircle2 class="h-3 w-3" />
-						完成 {stats.success}
-					</Badge>
-				{/if}
-				{#if stats.error > 0}
-					<Badge variant="outline" class="gap-1 border-red-500/50 text-red-500">
-						<XCircle class="h-3 w-3" />
-						失败 {stats.error}
-					</Badge>
-				{/if}
-			</div>
-		{/if}
-	</div>
-
-	<!-- 输入区域 -->
+<!-- ───── 全屏 flex 布局（与 chat 页一致） ───── -->
+<div class="relative flex h-[calc(100vh-4rem)] flex-col">
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<Card
-		class="mb-6 p-6 transition-colors {isDragging ? 'border-primary border-2 bg-primary/5' : ''}"
+	<div
+		class="flex-1 overflow-y-auto"
 		ondragover={handleDragOver}
 		ondragleave={handleDragLeave}
 		ondrop={handleDrop}
 	>
-		<div class="space-y-4">
-			<div>
-				<label for="prompt" class="mb-2 block text-sm font-medium">描述你想要的图片</label>
-				<Textarea
-					id="prompt"
-					bind:value={input}
-					onkeydown={handleKeyDown}
-					placeholder="例如：一只可爱的猫咪在花园里玩耍&#10;&#10;提示：按 Ctrl/Cmd + Enter 快速生成，支持拖拽图片到此处"
-					class="min-h-[120px] resize-none"
-				/>
+		<!-- 拖放覆盖层 -->
+		{#if isDragging}
+			<div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-primary/5 backdrop-blur-[2px]">
+				<div class="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-primary/40 bg-background/80 px-10 py-8">
+					<ImageIcon class="h-10 w-10 text-primary/60" />
+					<span class="text-sm font-medium text-primary/80">释放以添加参考图片</span>
+				</div>
 			</div>
+		{/if}
 
-			{#if isDragging}
-				<div class="flex items-center justify-center rounded-lg border-2 border-dashed border-primary/50 py-6 text-sm text-primary">
-					松开即可添加图片
+		{#if tasks.length === 0}
+			<!-- ── 空状态 ── -->
+			<div class="flex h-full flex-col items-center justify-center px-4">
+				<div class="mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+					<ImageIcon class="h-8 w-8 text-primary" />
 				</div>
-			{/if}
-
-			<!-- 附件预览 -->
-			{#if attachedFiles.length > 0}
-				<div>
-					<p class="mb-2 text-sm font-medium">
-						已添加的图片 ({attachedFiles.length}/{CHAT_ATTACHMENTS.MAX_FILES})
-					</p>
-					<div class="flex flex-wrap gap-2">
-						{#each attachedFiles as file}
-							<div class="group relative h-20 w-20 overflow-hidden rounded-lg border">
-								<img
-									src={file.previewUrl}
-									alt={file.file.name}
-									class="h-full w-full object-cover"
-								/>
-								<button
-									class="absolute right-1 top-1 rounded-full bg-black/50 p-1 opacity-0 transition-opacity group-hover:opacity-100"
-									onclick={() => removeFile(file.id)}
-								>
-									<X class="h-3 w-3 text-white" />
-								</button>
-							</div>
-						{/each}
-					</div>
-				</div>
-			{/if}
-
-			<!-- 快捷提示词 -->
-			<div>
-				<p class="mb-2 text-sm text-muted-foreground">快捷提示词：</p>
-				<div class="flex flex-wrap gap-2">
-					{#each quickPrompts as prompt}
-						<Button
-							variant="outline"
-							size="sm"
+				<h1 class="mb-2 text-2xl font-semibold text-foreground">AI 图片创作</h1>
+				<p class="mb-8 max-w-md text-center text-muted-foreground">
+					描述你想要的画面，AI 将为你生成。支持上传参考图进行图生图创作。
+				</p>
+				<div class="flex flex-wrap justify-center gap-2">
+					{#each quickPrompts as { icon: Icon, text, prompt }}
+						<button
 							onclick={() => useQuickPrompt(prompt)}
+							class="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:bg-accent hover:text-foreground"
 						>
-							{prompt}
-						</Button>
+							<Icon class="h-4 w-4" />
+							{text}
+						</button>
 					{/each}
 				</div>
 			</div>
-
-			<div class="flex justify-end gap-2">
-				{#if stats.success > 0}
-					<Button
-						variant="outline"
-						size="sm"
-						onclick={() => taskManager.clearCompleted()}
-					>
-						清空已完成
-					</Button>
+		{:else}
+			<!-- ── 任务列表 ── -->
+			<div class="mx-auto max-w-4xl space-y-4 p-4 pb-6">
+				<!-- 统计栏 -->
+				{#if stats.total > 0}
+					<div class="flex items-center gap-3 px-1 text-xs text-muted-foreground">
+						{#if stats.loading > 0}
+							<span class="flex items-center gap-1.5 text-blue-500">
+								<Loader2 class="h-3 w-3 animate-spin" />
+								生成中 {stats.loading}
+							</span>
+						{/if}
+						{#if stats.pending > 0}<span>等待 {stats.pending}</span>{/if}
+						<div class="flex-1"></div>
+						{#if stats.success > 0}
+							<span>{stats.success} 已完成</span>
+							<button
+								onclick={() => taskManager.clearCompleted()}
+								class="transition-colors hover:text-foreground"
+							>清空已完成</button>
+						{/if}
+					</div>
 				{/if}
-				<Button
-					variant="outline"
-					size="sm"
-					onclick={openFilePicker}
-					class="gap-2"
-					type="button"
-				>
-					<Paperclip class="h-4 w-4" />
-					添加图片
-				</Button>
-				<Button
-					onclick={handleSubmit}
-					disabled={!input.trim() && attachedFiles.length === 0}
-					class="gap-2"
-					type="button"
-				>
-					<Send class="h-4 w-4" />
-					添加到队列
-				</Button>
-			</div>
-		</div>
-	</Card>
 
-	<!-- 任务列表 -->
-	{#if tasks.length > 0}
-		<div class="space-y-6">
-			{#each tasks as task (task.id)}
-				{@const StatusIcon = getStatusIcon(task.status)}
-				<Card id="task-{task.id}" class="overflow-hidden">
-					<!-- 任务头部 -->
-					<div class="border-b bg-muted/30 p-4">
-						<div class="flex items-start justify-between gap-4">
-							<div class="flex-1">
-								<div class="mb-2 flex items-center gap-2">
-									<StatusIcon
-										class="h-4 w-4 {task.status === 'loading' ? 'animate-spin' : ''}"
-									/>
-									<Badge class={getStatusColor(task.status)}>
-										{getStatusLabel(task.status)}
-									</Badge>
-									<span class="text-xs text-muted-foreground">
-										{new Date(task.createdAt).toLocaleTimeString()}
-									</span>
-								</div>
-								<p class="text-sm">{task.prompt}</p>
+				{#each tasks as task (task.id)}
+					<div class="group rounded-2xl border bg-card p-4 transition-all hover:shadow-sm">
+						<!-- 头部：状态圆点 + prompt + 时间 + 操作 -->
+						<div class="flex items-start gap-3">
+							<div
+								class={cn(
+									'mt-1.5 h-2 w-2 flex-shrink-0 rounded-full',
+									task.status === 'loading' && 'animate-pulse bg-blue-500',
+									task.status === 'success' && 'bg-green-500',
+									task.status === 'error' && 'bg-red-500',
+									task.status === 'pending' && 'bg-yellow-500'
+								)}
+							></div>
+							<div class="min-w-0 flex-1">
+								<p class="text-sm leading-relaxed">{task.prompt}</p>
 								{#if task.attachedPreviews && task.attachedPreviews.length > 0}
 									<div class="mt-2 flex gap-1.5">
-										<span class="shrink-0 text-xs text-muted-foreground leading-[2.5rem]">参考图：</span>
 										{#each task.attachedPreviews as preview, i}
-											<img
-												src={preview}
-												alt="参考图 {i + 1}"
-												class="h-10 w-10 rounded border object-cover"
-											/>
+											<img src={preview} alt="参考图 {i + 1}" class="h-10 w-10 rounded-lg border object-cover" />
 										{/each}
 									</div>
 								{/if}
 								{#if task.error}
-									<p class="mt-2 text-sm text-red-500">{task.error}</p>
+									<p class="mt-2 text-sm text-destructive">{task.error}</p>
 								{/if}
 							</div>
-
-							<div class="flex gap-2">
+							<div class="flex items-center gap-1">
+								<span class="text-xs text-muted-foreground">
+									{new Date(task.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+								</span>
 								{#if task.status === 'error'}
-									<Button
-										variant="outline"
-										size="sm"
-										onclick={() => taskManager.retryTask(task.id)}
-										class="gap-1"
-									>
-										<RefreshCw class="h-3 w-3" />
-										重试
+									<Button variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground hover:text-foreground" onclick={() => taskManager.retryTask(task.id)}>
+										<RefreshCw class="h-3.5 w-3.5" />
 									</Button>
 								{/if}
 								<Button
 									variant="ghost"
-									size="sm"
+									size="icon"
+									class="h-7 w-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
 									onclick={() => taskManager.deleteTask(task.id)}
 								>
-									<Trash2 class="h-4 w-4" />
+									<Trash2 class="h-3.5 w-3.5" />
 								</Button>
 							</div>
 						</div>
-					</div>
 
-					<!-- 任务结果 -->
-					{#if task.status === 'success' && task.mediaResources.length > 0}
-						<div class="p-4">
-							<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+						<!-- 加载/排队提示 -->
+						{#if task.status === 'loading'}
+							<div class="mt-3 flex items-center gap-2 pl-5 text-sm text-muted-foreground">
+								<Loader2 class="h-4 w-4 animate-spin text-blue-500" />
+								正在生成...
+							</div>
+						{:else if task.status === 'pending'}
+							<p class="mt-3 pl-5 text-xs text-muted-foreground">排队中...</p>
+						{/if}
+
+						<!-- 生成结果 -->
+						{#if task.status === 'success' && task.mediaResources.length > 0}
+							<div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
 								{#each task.mediaResources as resource, index}
-									<div class="overflow-hidden rounded-lg border">
-										<button
-											class="relative aspect-square w-full bg-muted transition-transform hover:scale-105"
-											onclick={() => openGallery(task.mediaResources, index)}
-										>
+									<div class="group/img relative aspect-square overflow-hidden rounded-xl bg-muted">
+										<button class="h-full w-full" onclick={() => openGallery(task.mediaResources, index)}>
 											{#if resource.type === 'image'}
-												<img
-													src={resource.data}
-													alt={resource.filename || `生成的图片 ${index + 1}`}
-													class="h-full w-full object-cover"
-												/>
+												<img src={resource.data} alt={resource.filename || `生成的图片 ${index + 1}`} class="h-full w-full object-cover transition-transform duration-300 group-hover/img:scale-105" />
 											{:else if resource.type === 'video'}
-												<video src={resource.data} class="h-full w-full object-cover">
-													<track kind="captions" />
-												</video>
-											{:else if resource.type === 'audio'}
-												<div class="flex h-full items-center justify-center p-4">
-													<audio src={resource.data} controls class="w-full">
-														<track kind="captions" />
-													</audio>
-												</div>
+												<video src={resource.data} class="h-full w-full object-cover"><track kind="captions" /></video>
 											{:else}
-												<div class="flex h-full items-center justify-center">
-													<ImageIcon class="h-16 w-16 text-muted-foreground" />
-												</div>
+												<div class="flex h-full items-center justify-center"><ImageIcon class="h-8 w-8 text-muted-foreground" /></div>
 											{/if}
-											<!-- 悬停提示 -->
-											<div class="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all hover:bg-black/20 hover:opacity-100">
-												<span class="text-sm font-medium text-white">点击查看大图</span>
-											</div>
 										</button>
-
-										<div class="p-3">
-											<div class="mb-2 flex items-center justify-between">
-												<div class="flex-1 truncate text-xs">
-													{#if resource.filename}
-														<p class="font-medium">{resource.filename}</p>
-													{/if}
-													{#if resource.mimeType}
-														<p class="text-muted-foreground">{resource.mimeType}</p>
-													{/if}
-												</div>
-											</div>
-
-											<div class="flex gap-2">
-												<Button
-													variant="outline"
-													size="sm"
-													class="flex-1 gap-1"
-													onclick={() =>
-														downloadImage(
-															resource.data,
-															resource.filename || `image-${index + 1}`,
-															index
-														)}
+										<div class="pointer-events-none absolute inset-0 flex items-end bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover/img:opacity-100">
+											<div class="pointer-events-auto flex w-full justify-end p-2">
+												<button
+													class="rounded-full bg-white/20 p-1.5 backdrop-blur-sm transition-colors hover:bg-white/40"
+													onclick={(e) => { e.stopPropagation(); downloadImage(resource.data, resource.filename || `image-${index + 1}`, index); }}
 												>
-													<Download class="h-3 w-3" />
-													下载
-												</Button>
-												{#if !resource.isBase64}
-													<Button
-														variant="outline"
-														size="sm"
-														onclick={() => window.open(resource.data, '_blank')}
-													>
-														<ExternalLink class="h-3 w-3" />
-													</Button>
-												{/if}
+													<Download class="h-3.5 w-3.5 text-white" />
+												</button>
 											</div>
 										</div>
 									</div>
 								{/each}
 							</div>
-						</div>
-					{/if}
-				</Card>
-			{/each}
-		</div>
-	{/if}
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
 
-	<!-- 空状态 -->
-	{#if tasks.length === 0}
-		<Card class="p-12 text-center">
-			<ImageIcon class="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
-			<h3 class="mb-2 text-lg font-semibold">开始创作</h3>
-			<p class="text-muted-foreground">输入描述或上传参考图片，让 AI 为你生成精美图片</p>
-			<p class="mt-2 text-sm text-muted-foreground">支持图生图、多任务并发，可以切换到其他页面继续浏览</p>
-		</Card>
-	{/if}
+	<!-- ── 固定底部输入栏 ── -->
+	<div class="border-t bg-background px-4 py-3">
+		<form class="mx-auto max-w-3xl" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+			{#if attachedFiles.length > 0}
+				<div class="mb-2 flex flex-wrap gap-2">
+					{#each attachedFiles as file (file.id)}
+						<div class="group/thumb relative">
+							<img src={file.previewUrl} alt={file.file.name} class="h-16 w-16 rounded-lg border border-border object-cover" />
+							<button
+								type="button"
+								onclick={() => removeFile(file.id)}
+								class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm opacity-0 transition-opacity group-hover/thumb:opacity-100"
+							>
+								<X class="h-3 w-3" />
+							</button>
+						</div>
+					{/each}
+				</div>
+			{/if}
+
+			<div class={cn(
+				'relative flex items-end gap-2 rounded-2xl border bg-background p-2 shadow-sm transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20',
+				isDragging && 'border-primary/50 ring-2 ring-primary/20'
+			)}>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					class="h-10 w-10 flex-shrink-0 rounded-xl text-muted-foreground hover:text-foreground"
+					disabled={attachedFiles.length >= CHAT_ATTACHMENTS.MAX_FILES}
+					onclick={openFilePicker}
+				>
+					<Paperclip class="h-4 w-4" />
+				</Button>
+
+				<Textarea
+					bind:ref={textareaRef}
+					bind:value={input}
+					oninput={autoResize}
+					onkeydown={handleKeyDown}
+					placeholder="描述你想要的图片... (Ctrl+Enter 生成)"
+					class="min-h-[44px] max-h-[200px] flex-1 resize-none border-0 bg-transparent p-2 shadow-none focus-visible:ring-0"
+					rows={1}
+				/>
+
+				<Button
+					type="submit"
+					size="icon"
+					class="h-10 w-10 flex-shrink-0 rounded-xl"
+					disabled={!input.trim() && attachedFiles.length === 0}
+				>
+					<Send class="h-4 w-4" />
+				</Button>
+			</div>
+			<p class="mt-2 text-center text-xs text-muted-foreground">
+				支持拖拽或粘贴图片作为参考 · 多任务并发生成
+			</p>
+		</form>
+	</div>
 </div>
 
 <!-- 隐藏的文件选择器 -->
