@@ -3,6 +3,7 @@ import {
 	Package,
 	Ticket,
 	Server,
+	ImageIcon,
 	type Icon,
 } from 'lucide-svelte';
 import type { ComponentType } from 'svelte';
@@ -25,6 +26,7 @@ export interface AdminNavItem extends NavItem {}
 // ─── 功能导航（侧边栏 / 底部 Tab）────────────────────────
 
 export const navItems: NavItem[] = [
+	{ key: 'image-generation', label: '图片生成', icon: ImageIcon, href: '/image-generation' },
 	{ key: 'chat', label: 'Chat', icon: MessageCircle, href: '/chat' }
 ];
 
@@ -39,12 +41,12 @@ export const adminNavItems: AdminNavItem[] = [
 // ─── 默认路由 ─────────────────────────────────────────────
 
 /** 登录后默认跳转的路由 */
-export const defaultRoute = '/chat';
+export const defaultRoute = '/image-generation';
 
 // ─── 受保护路由前缀 ──────────────────────────────────────
 
 /** 需要认证的路由前缀列表 */
-export const protectedPrefixes = ['/chat', '/me', '/admin'];
+export const protectedPrefixes = ['/chat', '/me', '/admin', '/image-generation'];
 
 /** 认证相关页面（已登录用户会被重定向走） */
 export const authPages = ['/sign-in', '/sign-up'];
