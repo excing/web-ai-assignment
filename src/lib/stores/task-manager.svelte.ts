@@ -28,15 +28,25 @@ class TaskManager {
 	 * 创建新任务
 	 */
 	createTask(prompt: string): string {
+		console.log('TaskManager.createTask called with prompt:', prompt);
+
+		// 生成唯一 ID（兼容不支持 crypto.randomUUID 的环境）
+		const id = typeof crypto !== 'undefined' && crypto.randomUUID
+			? crypto.randomUUID()
+			: `task-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
 		const task: GenerationTask = {
-			id: crypto.randomUUID(),
+			id,
 			prompt,
 			status: 'pending',
 			mediaResources: [],
 			createdAt: Date.now()
 		};
 
+		console.log('Created task:', task);
 		this.tasks = [task, ...this.tasks];
+		console.log('Tasks after adding:', this.tasks.length);
+
 		this.processQueue();
 		return task.id;
 	}

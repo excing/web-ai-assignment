@@ -21,11 +21,18 @@
 	let input = $state('');
 
 	function handleSubmit() {
-		if (!input.trim()) return;
+		const trimmedInput = input.trim();
+		console.log('handleSubmit called, input:', trimmedInput);
 
-		const prompt = input.trim();
-		taskManager.createTask(prompt);
+		if (!trimmedInput) {
+			console.log('Input is empty, returning');
+			return;
+		}
+
+		console.log('Creating task with prompt:', trimmedInput);
+		taskManager.createTask(trimmedInput);
 		input = '';
+
 		toast.success('任务已添加到队列', {
 			description: '正在后台生成，完成后会通知你'
 		});
@@ -190,7 +197,12 @@
 						清空已完成
 					</Button>
 				{/if}
-				<Button onclick={handleSubmit} disabled={!input.trim()} class="gap-2">
+				<Button
+					onclick={handleSubmit}
+					disabled={!input.trim()}
+					class="gap-2"
+					type="button"
+				>
 					<Send class="h-4 w-4" />
 					添加到队列
 				</Button>
