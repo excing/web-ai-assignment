@@ -16,9 +16,23 @@
 		XCircle
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import { taskManager } from '$lib/stores/task-manager.svelte';
+	import { taskManager, type MediaResource } from '$lib/stores/task-manager.svelte';
+	import ImageGallery from '$lib/components/image-gallery.svelte';
 
 	let input = $state('');
+	let galleryImages = $state<MediaResource[]>([]);
+	let galleryInitialIndex = $state(0);
+	let showGallery = $state(false);
+
+	function openGallery(images: MediaResource[], index: number) {
+		galleryImages = images;
+		galleryInitialIndex = index;
+		showGallery = true;
+	}
+
+	function closeGallery() {
+		showGallery = false;
+	}
 
 	function handleSubmit() {
 		const trimmedInput = input.trim();
@@ -266,7 +280,10 @@
 							<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 								{#each task.mediaResources as resource, index}
 									<div class="overflow-hidden rounded-lg border">
-										<div class="relative aspect-square bg-muted">
+										<button
+											class="relative aspect-square w-full bg-muted transition-transform hover:scale-105"
+											onclick={() => openGallery(task.mediaResources, index)}
+										>
 											{#if resource.type === 'image'}
 												<img
 													src={resource.data}
@@ -274,7 +291,7 @@
 													class="h-full w-full object-cover"
 												/>
 											{:else if resource.type === 'video'}
-												<video src={resource.data} controls class="h-full w-full object-cover">
+												<video src={resource.data} class="h-full w-full object-cover">
 													<track kind="captions" />
 												</video>
 											{:else if resource.type === 'audio'}
@@ -288,7 +305,11 @@
 													<ImageIcon class="h-16 w-16 text-muted-foreground" />
 												</div>
 											{/if}
-										</div>
+											<!-- 悬停提示 -->
+											<div class="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all hover:bg-black/20 hover:opacity-100">
+												<span class="text-sm font-medium text-white">点击查看大图</span>
+											</div>
+										</button>
 
 										<div class="p-3">
 											<div class="mb-2 flex items-center justify-between">
@@ -348,3 +369,8 @@
 		</Card>
 	{/if}
 </div>
+
+<!-- 图片画廊 -->
+{#if showGallery}
+	<ImageGallery images={galleryImages} initialIndex={galleryInitialIndex} onClose={closeGallery} />
+{/if}
