@@ -14,7 +14,8 @@
 </script>
 
 <svelte:head>
-	<title>SvelteKit Starter Kit - Launch Your SAAS</title>
+	<title>BingWu AI - AI 智能创作平台</title>
+	<meta name="theme-color" content="#0f172a" />
 </svelte:head>
 
 <ModeWatcher defaultMode="light" />

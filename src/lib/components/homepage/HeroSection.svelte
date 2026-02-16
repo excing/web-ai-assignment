@@ -1,58 +1,103 @@
 <script lang="ts">
-    import { Button } from "$lib/components/ui/button";
-    import GetStartedButton from "$lib/components/common/GetStartedButton.svelte";
-    import { defaultRoute } from "$lib/config/navigation";
+	import { Button } from "$lib/components/ui/button";
+	import GetStartedButton from "$lib/components/common/GetStartedButton.svelte";
+	import { defaultRoute } from "$lib/config/navigation";
+	import { ImageIcon, MessageCircle, Sparkles } from "lucide-svelte";
 </script>
 
-<section class="py-20">
-    <div class="relative z-10 mx-auto w-full max-w-2xl px-6 lg:px-0">
-        <div class="relative text-center">
-            <p class="text-3xl">🔥</p>
-            <h1
-                class="mx-auto mt-12 max-w-xl text-balance text-5xl font-medium"
-            >
-                SvelteKit Starter Kit
-            </h1>
-            <p
-                class="text-muted-foreground mx-auto mb-6 mt-4 text-balance text-xl"
-            >
-                This powerful starter kit is designed to help you launch your
-                SAAS application quickly and efficiently.
-            </p>
-            <div
-                class="flex flex-col items-center gap-2 *:w-full sm:flex-row sm:justify-center sm:*:w-auto"
-            >
-                <GetStartedButton href={defaultRoute} variant="default" size="sm">
-                    <span class="text-nowrap">Get Started</span>
-                </GetStartedButton>
-                <Button
-                    href="https://github.com/excing/svelte-starter-kit"
-                    target="_blank"
-                    rel="noreferrer"
-                    variant="outline"
-                    size="sm"
-                >
-                    <span class="text-nowrap">Github</span>
-                </Button>
-            </div>
-        </div>
+<section class="relative overflow-hidden">
+	<!-- Background decoration -->
+	<div class="pointer-events-none absolute inset-0 -z-10">
+		<div class="absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-primary/5 blur-3xl"></div>
+		<div class="absolute -bottom-20 -right-40 h-[400px] w-[400px] rounded-full bg-primary/5 blur-3xl"></div>
+		<div class="absolute left-1/2 top-1/3 h-[300px] w-[300px] -translate-x-1/2 rounded-full bg-primary/3 blur-3xl"></div>
+	</div>
 
-        <div class="relative mt-8 overflow-hidden rounded-3xl bg-black/10">
-            <img
-                src="https://images.unsplash.com/photo-1547623641-d2c56c03e2a7?q=80&w=3087&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                alt=""
-                class="absolute inset-0 size-full object-cover"
-            />
+	<div class="mx-auto max-w-6xl px-6 pb-20 pt-24 lg:pb-28 lg:pt-32">
+		<div class="text-center">
+			<!-- Badge -->
+			<div class="mb-6 inline-flex items-center gap-2 rounded-full border bg-background px-4 py-1.5 text-sm text-muted-foreground shadow-sm">
+				<Sparkles class="h-4 w-4 text-primary" />
+				<span>AI 驱动的下一代创作工具</span>
+			</div>
 
-            <div
-                class="bg-background rounded-(--radius) relative m-4 overflow-hidden border border-transparent shadow-xl shadow-black/15 ring-1 ring-black/10 sm:m-8 md:m-12"
-            >
-                <img
-                    src="/image/svelte-starter-kit-1024-q50.jpg"
-                    alt="app screen"
-                    class="object-top-left size-full object-cover"
-                />
-            </div>
-        </div>
-    </div>
+			<!-- Headline -->
+			<h1 class="mx-auto max-w-3xl text-balance text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+				用 AI 释放你的
+				<span class="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">创造力</span>
+			</h1>
+
+			<!-- Subheadline -->
+			<p class="mx-auto mt-6 max-w-2xl text-balance text-lg text-muted-foreground sm:text-xl">
+				BingWu AI — 文字生图、图生图、智能对话，一站式 AI 创作平台。按需付费，即刻开始。
+			</p>
+
+			<!-- CTA Buttons -->
+			<div class="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+				<GetStartedButton href={defaultRoute} variant="default" size="lg" class="w-full sm:w-auto">
+					<span class="text-nowrap">免费开始创作</span>
+				</GetStartedButton>
+				<Button href="#features" variant="outline" size="lg" class="w-full sm:w-auto">
+					<span class="text-nowrap">了解更多</span>
+				</Button>
+			</div>
+		</div>
+
+		<!-- Product preview cards -->
+		<div class="mt-16 grid gap-4 sm:grid-cols-2 lg:mt-20">
+			<!-- Image generation preview -->
+			<div class="group relative overflow-hidden rounded-2xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-lg">
+				<div class="mb-4 flex items-center gap-3">
+					<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+						<ImageIcon class="h-5 w-5 text-primary" />
+					</div>
+					<div>
+						<h3 class="font-semibold">AI 图片生成</h3>
+						<p class="text-xs text-muted-foreground">文字描述，即刻出图</p>
+					</div>
+				</div>
+				<!-- Mock prompt -->
+				<div class="rounded-xl border bg-muted/50 p-4">
+					<p class="text-sm text-muted-foreground">"一只可爱的猫咪在花园里玩耍，水彩画风格"</p>
+				</div>
+				<!-- Mock result grid -->
+				<div class="mt-3 grid grid-cols-3 gap-2">
+					<div class="aspect-square rounded-lg bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200 dark:from-pink-900/40 dark:via-purple-900/40 dark:to-blue-900/40"></div>
+					<div class="aspect-square rounded-lg bg-gradient-to-br from-orange-200 via-rose-200 to-pink-200 dark:from-orange-900/40 dark:via-rose-900/40 dark:to-pink-900/40"></div>
+					<div class="aspect-square rounded-lg bg-gradient-to-br from-green-200 via-teal-200 to-cyan-200 dark:from-green-900/40 dark:via-teal-900/40 dark:to-cyan-900/40"></div>
+				</div>
+			</div>
+
+			<!-- Chat preview -->
+			<div class="group relative overflow-hidden rounded-2xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-lg">
+				<div class="mb-4 flex items-center gap-3">
+					<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+						<MessageCircle class="h-5 w-5 text-primary" />
+					</div>
+					<div>
+						<h3 class="font-semibold">AI 智能对话</h3>
+						<p class="text-xs text-muted-foreground">实时流式响应</p>
+					</div>
+				</div>
+				<!-- Mock chat -->
+				<div class="space-y-3">
+					<div class="flex justify-end">
+						<div class="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+							帮我写一篇关于量子计算的科普文章
+						</div>
+					</div>
+					<div class="flex justify-start">
+						<div class="max-w-[80%] rounded-2xl rounded-bl-md bg-muted px-4 py-2.5 text-sm">
+							<p class="text-muted-foreground">量子计算是一种利用量子力学原理进行计算的技术。与传统计算机使用"比特"不同，量子计算机使用"量子比特"...</p>
+						</div>
+					</div>
+					<div class="flex justify-end">
+						<div class="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+							能否更通俗易懂一些？
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
 </section>

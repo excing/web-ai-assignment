@@ -1,39 +1,90 @@
 <script lang="ts">
-    const links = [
-        {
-            title: "X",
-            href: "https://www.x.com/rasmickyy",
-        },
-        {
-            title: "YouTube",
-            href: "https://www.youtube.com/@rasmic",
-        },
-    ];
+	const productLinks = [
+		{ title: "AI 图片生成", href: "/image-generation" },
+		{ title: "AI 智能对话", href: "/chat" },
+		{ title: "积分中心", href: "/me/credits" },
+	];
+
+	const legalLinks = [
+		{ title: "隐私政策", href: "/privacy-policy" },
+		{ title: "服务条款", href: "/terms-of-service" },
+	];
 </script>
 
-<footer class="bg-background py-12">
-    <div class="mx-auto max-w-5xl px-6">
-        <div class="flex flex-wrap justify-between gap-12">
-            <div class="order-last flex items-center gap-3 md:order-first">
-                <span class="text-muted-foreground block text-center text-sm">
-                    © {new Date().getFullYear()} Exodus Labs, All rights reserved
-                </span>
-            </div>
+<footer class="border-t bg-background py-12">
+	<div class="mx-auto max-w-6xl px-6">
+		<div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+			<!-- Brand -->
+			<div class="sm:col-span-2 lg:col-span-1">
+				<span class="text-lg font-bold">BingWu AI</span>
+				<p class="mt-2 text-sm text-muted-foreground">
+					AI 智能创作平台，让创造更简单。
+				</p>
+			</div>
 
-            <div
-                class="order-first flex flex-wrap gap-x-6 gap-y-4 md:order-last"
-            >
-                {#each links as link}
-                    <a
-                        href={link.href}
-                        class="text-muted-foreground hover:text-primary block duration-150"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        <span>{link.title}</span>
-                    </a>
-                {/each}
-            </div>
-        </div>
-    </div>
+			<!-- Product links -->
+			<div>
+				<h4 class="text-sm font-semibold">产品</h4>
+				<ul class="mt-3 space-y-2">
+					{#each productLinks as link}
+						<li>
+							<a
+								href={link.href}
+								class="text-sm text-muted-foreground transition-colors hover:text-foreground"
+							>
+								{link.title}
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</div>
+
+			<!-- Legal links -->
+			<div>
+				<h4 class="text-sm font-semibold">法律</h4>
+				<ul class="mt-3 space-y-2">
+					{#each legalLinks as link}
+						<li>
+							<a
+								href={link.href}
+								class="text-sm text-muted-foreground transition-colors hover:text-foreground"
+							>
+								{link.title}
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</div>
+
+			<!-- Support -->
+			<div>
+				<h4 class="text-sm font-semibold">支持</h4>
+				<ul class="mt-3 space-y-2">
+					<li>
+						<a
+							href="#faq"
+							class="text-sm text-muted-foreground transition-colors hover:text-foreground"
+						>
+							常见问题
+						</a>
+					</li>
+					<li>
+						<a
+							href="mailto:support@bingwu.ai"
+							class="text-sm text-muted-foreground transition-colors hover:text-foreground"
+						>
+							联系我们
+						</a>
+					</li>
+				</ul>
+			</div>
+		</div>
+
+		<!-- Bottom bar -->
+		<div class="mt-10 border-t pt-6">
+			<p class="text-center text-sm text-muted-foreground">
+				&copy; {new Date().getFullYear()} BingWu AI. All rights reserved.
+			</p>
+		</div>
+	</div>
 </footer>
