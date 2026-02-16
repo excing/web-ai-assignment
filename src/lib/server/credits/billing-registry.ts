@@ -1,5 +1,5 @@
 import type { BilledRouteConfig } from './billing-types';
-import { chatBillingStrategy, uploadBillingStrategy } from './billing-strategies';
+import { chatBillingStrategy, uploadBillingStrategy, textGenerationBillingStrategy } from './billing-strategies';
 
 /**
  * 需要计费的路由注册表。
@@ -12,6 +12,12 @@ const billedRoutes: BilledRouteConfig[] = [
 		method: 'POST',
 		strategy: chatBillingStrategy,
 		responseType: 'streaming',
+	},
+	{
+		pathPattern: '/api/generate-text',
+		method: 'POST',
+		strategy: textGenerationBillingStrategy,
+		responseType: 'standard',
 	},
 	{
 		pathPattern: '/api/upload-image',

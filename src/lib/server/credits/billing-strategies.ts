@@ -2,6 +2,38 @@ import type { BillingStrategy, CostEstimate, ActualCost } from './billing-types'
 import type { RequestEvent } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 
+// ─── 文本生成：固定计费策略 ───
+
+/** 每次文本生成的积分费用，可通过环境变量配置 */
+function getTextGenerationCreditCost(): number {
+	return parseInt(env.CREDITS_TEXT_GENERATION_COST ?? '5', 10);
+}
+
+export const textGenerationBillingStrategy: BillingStrategy = {
+	name: 'text-generation-fixed',
+	mode: 'fixed',
+
+	async estimateCost(_event: RequestEvent): Promise<CostEstimate> {
+		const cost = getTextGenerationCreditCost();
+		return {
+			estimatedCost: cost,
+			description: `文本生成 - ${cost} 积分`,
+		};
+	},
+
+	async calculateActualCost(_event: RequestEvent, _usageData: unknown): Promise<ActualCost> {
+		const cost = getTextGenerationCreditCost();
+		return {
+			amount: cost,
+			description: '文本生成扣费',
+			metadata: {
+				type: 'text-generation',
+				fixedCost: cost,
+			},
+		};
+	},
+};
+
 // ─── 文件上传：固定计费策略 ───
 
 /** 每次上传的积分费用，可通过环境变量配置 */
