@@ -177,7 +177,7 @@
 </script>
 
 <!-- ───── 全屏 flex 布局（与 chat 页一致） ───── -->
-<div class="relative flex h-[calc(100vh-4rem)] flex-col">
+<div class="relative flex h-full flex-col">
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="flex-1 overflow-y-auto"

@@ -271,7 +271,7 @@
     }
 </script>
 
-<div class="relative flex h-[calc(100vh-4rem)] flex-col">
+<div class="relative flex h-full flex-col">
     <ChatAlertBanners {isOnline} {creditBalance} />
 
     <!-- svelte-ignore a11y_no_static_element_interactions -->
