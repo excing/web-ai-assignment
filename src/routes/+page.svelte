@@ -2,13 +2,12 @@
 	import HeroSection from "$lib/components/homepage/HeroSection.svelte";
 	import FeaturesSection from "$lib/components/homepage/FeaturesSection.svelte";
 	import HowItWorks from "$lib/components/homepage/HowItWorks.svelte";
-	import PricingSection from "$lib/components/homepage/PricingSection.svelte";
 	import FAQSection from "$lib/components/homepage/FAQSection.svelte";
 	import Footer from "$lib/components/homepage/Footer.svelte";
 
 	const siteUrl = "https://bingwu.ai";
 	const title = "BingWu AI - AI 智能创作平台 | 文字生图 · 智能对话";
-	const description = "BingWu AI 是一站式 AI 创作平台，提供文字生图、图生图和 AI 智能对话功能。按需付费，积分制计费，即刻释放你的创造力。";
+	const description = "BingWu AI 是一站式 AI 创作平台，提供文字生图、图生图和 AI 智能对话功能。注册即可体验，即刻释放你的创造力。";
 
 	const jsonLd = {
 		"@context": "https://schema.org",
@@ -22,7 +21,7 @@
 			"@type": "Offer",
 			"price": "0",
 			"priceCurrency": "CNY",
-			"description": "积分制按需付费"
+			"description": "免费体验"
 		}
 	};
 </script>
@@ -54,7 +53,6 @@
 	<HeroSection />
 	<FeaturesSection />
 	<HowItWorks />
-	<PricingSection />
 	<FAQSection />
 </main>
 <Footer />
