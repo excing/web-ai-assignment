@@ -14,10 +14,19 @@
     import {
         ChatAlertBanners,
         ChatEmptyState,
+        ChatHeader,
         ChatMessageList,
         ChatInputArea,
         ChatScrollButton,
     } from "$lib/components/chat";
+    import {
+        saveChatSession,
+        loadChatSession,
+        deleteChatSession,
+        getChatSessionList,
+        revokeActiveObjectUrls,
+        type SessionMeta,
+    } from "$lib/stores/chat-history.svelte";
 
     // ── 状态 ──
     let input = $state("");
@@ -38,6 +47,10 @@
 
     let user = $derived(getCurrentUser());
     let creditBalance = $derived(getCreditBalance());
+
+    // ── 聊天历史状态 ──
+    let currentSessionId = $state<string>(crypto.randomUUID());
+    let sessionMetas = $state<SessionMeta[]>([]);
 
     // ── Chat 实例 ──
     function handleError(error: Error | unknown) {
@@ -63,6 +76,8 @@
             }
         } else if (!options.isAbort) {
             fetchCreditBalance();
+            // 自动保存聊天记录
+            autoSaveCurrentChat();
         }
     }
 
@@ -82,12 +97,94 @@
             const handleOffline = () => { isOnline = false; toast.error("网络连接已断开"); };
             window.addEventListener("online", handleOnline);
             window.addEventListener("offline", handleOffline);
+
+            // 加载历史记录列表
+            refreshSessionList();
+
             return () => {
                 window.removeEventListener("online", handleOnline);
                 window.removeEventListener("offline", handleOffline);
+                revokeActiveObjectUrls();
             };
         }
     });
+
+    // ── 聊天历史管理 ──
+    async function refreshSessionList() {
+        try {
+            sessionMetas = await getChatSessionList();
+        } catch (err) {
+            console.warn("Failed to load chat history:", err);
+        }
+    }
+
+    async function autoSaveCurrentChat() {
+        if (chat.messages.length === 0) return;
+        try {
+            await saveChatSession(currentSessionId, chat.messages);
+            await refreshSessionList();
+        } catch (err) {
+            console.warn("Failed to auto-save chat:", err);
+        }
+    }
+
+    async function handleNewChat() {
+        // 保存当前对话（如果有内容）
+        if (chat.messages.length > 0) {
+            await autoSaveCurrentChat();
+        }
+        revokeActiveObjectUrls();
+        chat.messages = [];
+        currentSessionId = crypto.randomUUID();
+        lastError = null;
+        failedMessage = null;
+        input = "";
+        pendingFiles = [];
+    }
+
+    async function handleLoadChat(id: string) {
+        if (id === currentSessionId) return;
+        // 保存当前对话
+        if (chat.messages.length > 0) {
+            await autoSaveCurrentChat();
+        }
+        try {
+            const messages = await loadChatSession(id);
+            if (messages) {
+                chat.messages = messages;
+                currentSessionId = id;
+                lastError = null;
+                failedMessage = null;
+                input = "";
+                pendingFiles = [];
+                await tick();
+                scrollToBottom(false);
+            } else {
+                toast.error("聊天记录不存在");
+            }
+        } catch (err) {
+            console.error("Failed to load chat:", err);
+            toast.error("加载聊天记录失败");
+        }
+    }
+
+    async function handleDeleteChat(id: string) {
+        try {
+            await deleteChatSession(id);
+            await refreshSessionList();
+            // 如果删除的是当前会话，新建聊天
+            if (id === currentSessionId) {
+                revokeActiveObjectUrls();
+                chat.messages = [];
+                currentSessionId = crypto.randomUUID();
+                lastError = null;
+                failedMessage = null;
+            }
+        } catch (err) {
+            console.error("Failed to delete chat:", err);
+            toast.error("删除聊天记录失败");
+        }
+    }
 
     // ── 滚动控制 ──
     function checkScrollPosition() {
@@ -272,6 +369,13 @@
 </script>
 
 <div class="relative flex h-full flex-col">
+    <ChatHeader
+        sessions={sessionMetas}
+        {currentSessionId}
+        onNewChat={handleNewChat}
+        onLoadChat={handleLoadChat}
+        onDeleteChat={handleDeleteChat}
+    />
     <ChatAlertBanners {isOnline} {creditBalance} />
 
     <!-- svelte-ignore a11y_no_static_element_interactions -->
