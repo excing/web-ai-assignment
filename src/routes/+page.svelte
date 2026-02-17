@@ -8,7 +8,7 @@
 
 	const siteUrl = "https://bingwu.ai";
 	const title = "BingWu AI - AI 智能创作平台 | 文字生图 · 智能对话";
-	const description = "BingWu AI 是一站式 AI 创作平台，提供文字生图、图生图和 AI 智能对话功能。按需付费，积分制计费，即刻释放你的创造力。";
+	const description = "BingWu AI 丙午马年，灵感如火、创作飞驰。提供文字生图、图生图和 AI 智能对话，一站式 AI 创作平台。";
 
 	const jsonLd = {
 		"@context": "https://schema.org",

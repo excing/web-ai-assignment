@@ -29,13 +29,13 @@
 
 			<!-- Subheadline -->
 			<p class="mx-auto mt-6 max-w-2xl text-balance text-lg text-muted-foreground sm:text-xl">
-				BingWu AI — 文字生图、图生图、智能对话，一站式 AI 创作平台。按需付费，即刻开始。
+				BingWu AI — 丙午马年，灵感如火、一日千里。文字生图、智能对话，一站式 AI 创作平台。
 			</p>
 
 			<!-- CTA Buttons -->
 			<div class="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
 				<GetStartedButton href={defaultRoute} variant="default" size="lg" class="w-full sm:w-auto">
-					<span class="text-nowrap">免费开始创作</span>
+					<span class="text-nowrap">🐴 马上开始创作</span>
 				</GetStartedButton>
 				<Button href="#features" variant="outline" size="lg" class="w-full sm:w-auto">
 					<span class="text-nowrap">了解更多</span>
@@ -60,11 +60,11 @@
 				<div class="rounded-xl border bg-muted/50 p-4">
 					<p class="text-sm text-muted-foreground">"一只可爱的猫咪在花园里玩耍，水彩画风格"</p>
 				</div>
-				<!-- Mock result grid -->
+				<!-- Generated result grid -->
 				<div class="mt-3 grid grid-cols-3 gap-2">
-					<div class="aspect-square rounded-lg bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200 dark:from-pink-900/40 dark:via-purple-900/40 dark:to-blue-900/40"></div>
-					<div class="aspect-square rounded-lg bg-gradient-to-br from-orange-200 via-rose-200 to-pink-200 dark:from-orange-900/40 dark:via-rose-900/40 dark:to-pink-900/40"></div>
-					<div class="aspect-square rounded-lg bg-gradient-to-br from-green-200 via-teal-200 to-cyan-200 dark:from-green-900/40 dark:via-teal-900/40 dark:to-cyan-900/40"></div>
+					<img src="https://aithos.blendiv.com/hero-1.jpeg" alt="AI 生成的水彩猫咪画作" class="aspect-square rounded-lg object-cover" loading="lazy" />
+					<img src="https://aithos.blendiv.com/hero-2.jpeg" alt="AI 生成的水彩猫咪画作" class="aspect-square rounded-lg object-cover" loading="lazy" />
+					<img src="https://aithos.blendiv.com/hero-3.jpeg" alt="AI 生成的水彩猫咪画作" class="aspect-square rounded-lg object-cover" loading="lazy" />
 				</div>
 			</div>
 

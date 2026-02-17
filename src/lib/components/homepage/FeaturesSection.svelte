@@ -20,7 +20,7 @@
 		{
 			icon: Zap,
 			title: "极速响应",
-			description: "流式输出技术让你无需等待，AI 回复实时呈现。图片生成支持并发队列，高效不卡顿。",
+			description: "如骏马疾驰，流式输出技术让 AI 回复实时呈现。图片生成支持并发队列，高效不卡顿。",
 		},
 		{
 			icon: Shield,
@@ -40,10 +40,10 @@
 		<!-- Section header -->
 		<div class="mx-auto max-w-2xl text-center">
 			<h2 class="text-3xl font-bold tracking-tight sm:text-4xl">
-				强大的 AI 能力，简单的使用体验
+				千里之行，始于足下
 			</h2>
 			<p class="mt-4 text-lg text-muted-foreground">
-				BingWu AI 将前沿 AI 技术封装为简洁易用的工具，让每个人都能轻松创作
+				火马般的 AI 能力，为你的创作保驾护航
 			</p>
 		</div>
 
