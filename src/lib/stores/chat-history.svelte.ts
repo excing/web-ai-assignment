@@ -7,6 +7,7 @@
  */
 
 import type { UIMessage } from '@ai-sdk/svelte';
+import { generateUUID } from '$lib/utils/uuid';
 import {
 	putSession,
 	getSession,
@@ -107,7 +108,7 @@ async function processMediaInMessages(
 
 			try {
 				const { blob, mediaType, filename } = await urlToBlob(url, part.mediaType, part.filename);
-				const blobId = crypto.randomUUID();
+				const blobId = generateUUID();
 
 				const storedBlob: StoredBlob = {
 					id: blobId,

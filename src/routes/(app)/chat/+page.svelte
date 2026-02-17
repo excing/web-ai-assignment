@@ -5,6 +5,7 @@
     import { getCreditBalance, fetchCreditBalance } from "$lib/stores/credits.svelte";
     import { parseError, type ChatError } from "$lib/utils/chat-errors";
     import { highlightCodeBlocks, injectCopyButtons } from "$lib/utils/markdown";
+    import { generateUUID } from "$lib/utils/uuid";
     import { ImageIcon } from "lucide-svelte";
     import { toast } from "svelte-sonner";
     import { goto } from "$app/navigation";
@@ -49,7 +50,7 @@
     let creditBalance = $derived(getCreditBalance());
 
     // ── 聊天历史状态 ──
-    let currentSessionId = $state<string>(crypto.randomUUID());
+    let currentSessionId = $state<string>(generateUUID());
     let sessionMetas = $state<SessionMeta[]>([]);
 
     // ── Chat 实例 ──
@@ -135,7 +136,7 @@
         }
         revokeActiveObjectUrls();
         chat.messages = [];
-        currentSessionId = crypto.randomUUID();
+        currentSessionId = generateUUID();
         lastError = null;
         failedMessage = null;
         input = "";
@@ -176,7 +177,7 @@
             if (id === currentSessionId) {
                 revokeActiveObjectUrls();
                 chat.messages = [];
-                currentSessionId = crypto.randomUUID();
+                currentSessionId = generateUUID();
                 lastError = null;
                 failedMessage = null;
             }
@@ -260,7 +261,7 @@
             }
             const error = validateFile(file);
             if (error) { toast.error(error); continue; }
-            pendingFiles = [...pendingFiles, { id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file) }];
+            pendingFiles = [...pendingFiles, { id: generateUUID(), file, previewUrl: URL.createObjectURL(file) }];
         }
     }
 

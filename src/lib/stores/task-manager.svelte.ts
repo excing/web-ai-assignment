@@ -1,6 +1,7 @@
 import { toast } from 'svelte-sonner';
 import { refreshCurrentUser } from './auth.svelte';
 import { fetchCreditBalance } from './credits.svelte';
+import { generateUUID } from '$lib/utils/uuid';
 
 
 export interface MediaResource {
@@ -49,10 +50,7 @@ class TaskManager {
 	createTask(prompt: string, files?: File[]): string {
 		console.log('TaskManager.createTask called with prompt:', prompt, 'files:', files?.length);
 
-		// 生成唯一 ID（兼容不支持 crypto.randomUUID 的环境）
-		const id = typeof crypto !== 'undefined' && crypto.randomUUID
-			? crypto.randomUUID()
-			: `task-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+		const id = generateUUID();
 
 		const validFiles = files?.filter((f) => f.size > 0) || [];
 
