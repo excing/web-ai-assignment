@@ -3,19 +3,20 @@
     import type { FileUIPart } from "ai";
     import { getCurrentUser } from "$lib/stores/auth.svelte";
     import { getCreditBalance, fetchCreditBalance } from "$lib/stores/credits.svelte";
+    import { setHeaderSlots, clearHeaderSlots } from "$lib/stores/page-header.svelte";
     import { parseError, type ChatError } from "$lib/utils/chat-errors";
     import { highlightCodeBlocks, injectCopyButtons } from "$lib/utils/markdown";
     import { generateUUID } from "$lib/utils/uuid";
-    import { ImageIcon } from "lucide-svelte";
+    import { CREDITS, CHAT_ATTACHMENTS, UI } from "$lib/config/constants";
+    import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
+    import { Button } from "$lib/components/ui/button";
+    import { ImageIcon, History, SquarePen, Trash2, MessageSquare, WifiOff, AlertCircle } from "lucide-svelte";
     import { toast } from "svelte-sonner";
     import { goto } from "$app/navigation";
     import { tick, onMount } from "svelte";
     import { browser } from "$app/environment";
-    import { CHAT_ATTACHMENTS, UI } from "$lib/config/constants";
     import {
-        ChatAlertBanners,
         ChatEmptyState,
-        ChatHeader,
         ChatMessageList,
         ChatInputArea,
         ChatScrollButton,
@@ -48,10 +49,31 @@
 
     let user = $derived(getCurrentUser());
     let creditBalance = $derived(getCreditBalance());
+    let showLowBalance = $derived(isOnline && creditBalance < CREDITS.LOW_BALANCE_WARNING);
 
     // ── 聊天历史状态 ──
     let currentSessionId = $state<string>(generateUUID());
     let sessionMetas = $state<SessionMeta[]>([]);
+
+    // ── Top Bar snippet 注入 ──
+    $effect(() => {
+        setHeaderSlots({ left: headerLeft, center: headerCenter, right: headerRight });
+        return () => clearHeaderSlots();
+    });
+
+    function formatTime(timestamp: number): string {
+        const now = Date.now();
+        const diff = now - timestamp;
+        const minutes = Math.floor(diff / 60000);
+        if (minutes < 1) return "刚刚";
+        if (minutes < 60) return `${minutes} 分钟前`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours} 小时前`;
+        const days = Math.floor(hours / 24);
+        if (days < 30) return `${days} 天前`;
+        const date = new Date(timestamp);
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+    }
 
     // ── Chat 实例 ──
     function handleError(error: Error | unknown) {
@@ -77,7 +99,6 @@
             }
         } else if (!options.isAbort) {
             fetchCreditBalance();
-            // 自动保存聊天记录
             autoSaveCurrentChat();
         }
     }
@@ -99,7 +120,6 @@
             window.addEventListener("online", handleOnline);
             window.addEventListener("offline", handleOffline);
 
-            // 加载历史记录列表
             refreshSessionList();
 
             return () => {
@@ -130,7 +150,6 @@
     }
 
     async function handleNewChat() {
-        // 保存当前对话（如果有内容）
         if (chat.messages.length > 0) {
             await autoSaveCurrentChat();
         }
@@ -145,7 +164,6 @@
 
     async function handleLoadChat(id: string) {
         if (id === currentSessionId) return;
-        // 保存当前对话
         if (chat.messages.length > 0) {
             await autoSaveCurrentChat();
         }
@@ -173,7 +191,6 @@
         try {
             await deleteChatSession(id);
             await refreshSessionList();
-            // 如果删除的是当前会话，新建聊天
             if (id === currentSessionId) {
                 revokeActiveObjectUrls();
                 chat.messages = [];
@@ -369,16 +386,90 @@
     }
 </script>
 
-<div class="relative flex h-full flex-col">
-    <ChatHeader
-        sessions={sessionMetas}
-        {currentSessionId}
-        onNewChat={handleNewChat}
-        onLoadChat={handleLoadChat}
-        onDeleteChat={handleDeleteChat}
-    />
-    <ChatAlertBanners {isOnline} {creditBalance} />
+<!-- ── Top Bar Snippets ── -->
 
+{#snippet headerLeft()}
+    <DropdownMenu.Root>
+        <DropdownMenu.Trigger>
+            <Button variant="ghost" size="sm" class="h-8 gap-1.5 px-2 text-muted-foreground">
+                <History class="h-4 w-4" />
+                <span class="hidden sm:inline text-xs">历史</span>
+                {#if sessionMetas.length > 0}
+                    <span class="flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] leading-none">
+                        {sessionMetas.length}
+                    </span>
+                {/if}
+            </Button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content class="w-72" align="start">
+            {#if sessionMetas.length === 0}
+                <div class="flex flex-col items-center gap-2 px-4 py-6 text-center">
+                    <MessageSquare class="h-8 w-8 text-muted-foreground/40" />
+                    <p class="text-sm text-muted-foreground">暂无历史记录</p>
+                </div>
+            {:else}
+                <DropdownMenu.Label>历史对话</DropdownMenu.Label>
+                <DropdownMenu.Separator />
+                <div class="max-h-80 overflow-y-auto">
+                    {#each sessionMetas as session (session.id)}
+                        <DropdownMenu.Item
+                            class="group/item flex items-start gap-2 pr-1"
+                            disabled={session.id === currentSessionId}
+                            onclick={() => handleLoadChat(session.id)}
+                        >
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-medium">
+                                    {session.title}
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {formatTime(session.updatedAt)}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                class="ml-auto flex h-6 w-6 flex-shrink-0 items-center justify-center rounded opacity-0 transition-opacity hover:bg-destructive/10 group-hover/item:opacity-100"
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteChat(session.id);
+                                }}
+                            >
+                                <Trash2 class="h-3.5 w-3.5 text-destructive" />
+                            </button>
+                        </DropdownMenu.Item>
+                    {/each}
+                </div>
+            {/if}
+        </DropdownMenu.Content>
+    </DropdownMenu.Root>
+{/snippet}
+
+{#snippet headerCenter()}
+    {#if !isOnline}
+        <div class="flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-0.5 dark:bg-red-900/20">
+            <WifiOff class="h-3 w-3 text-red-500 dark:text-red-400" />
+            <span class="text-xs text-red-700 dark:text-red-300">网络已断开</span>
+        </div>
+    {:else if showLowBalance}
+        <a
+            href="/me/credits"
+            class="flex items-center gap-1.5 rounded-full bg-yellow-50 px-2.5 py-0.5 transition-colors hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30"
+        >
+            <AlertCircle class="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+            <span class="text-xs text-yellow-700 dark:text-yellow-300">余额不足 ({creditBalance})</span>
+        </a>
+    {/if}
+{/snippet}
+
+{#snippet headerRight()}
+    <Button variant="ghost" size="sm" class="h-8 gap-1.5 px-2 text-muted-foreground" onclick={handleNewChat}>
+        <SquarePen class="h-4 w-4" />
+        <span class="hidden sm:inline text-xs">新建</span>
+    </Button>
+{/snippet}
+
+<!-- ── Page Content ── -->
+
+<div class="relative flex h-full flex-col">
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
         bind:this={messagesContainer}
