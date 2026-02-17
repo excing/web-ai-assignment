@@ -81,7 +81,7 @@ export const auth = betterAuth({
             const result = await resend.emails.send({
                 from: RESEND_FROM_EMAIL,
                 to: user.email,
-                subject: '重置密码 - SvelteKit Starter Kit',
+                subject: '重置密码 - BingWu AI',
                 html: `
                     <h2>重置密码</h2>
                     <p>您好 ${escapeHtml(user.name)}，</p>
@@ -101,7 +101,7 @@ export const auth = betterAuth({
             const result = await resend.emails.send({
                 from: RESEND_FROM_EMAIL,
                 to: user.email,
-                subject: '验证您的邮箱 - SvelteKit Starter Kit',
+                subject: '验证您的邮箱 - BingWu AI',
                 html: `
                     <h2>验证邮箱</h2>
                     <p>您好 ${escapeHtml(user.name)}，</p>

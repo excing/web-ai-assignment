@@ -1,319 +1,139 @@
-<script lang="ts">
-    import * as Card from "$lib/components/ui/card";
-</script>
+<svelte:head>
+	<title>服务条款 - BingWu AI</title>
+</svelte:head>
 
-<div
-    class="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950"
->
-    <div class="container mx-auto max-w-4xl px-4 py-16">
-        <div class="mb-8">
-            <a
-                href="/"
-                class="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-            >
-                ← Back to home
-            </a>
-        </div>
+<div class="flex min-h-screen w-full flex-col items-center px-6 py-16">
+	<div class="w-full max-w-3xl">
+		<div class="mb-8">
+			<a
+				href="/"
+				class="text-sm text-muted-foreground hover:text-foreground transition-colors"
+			>
+				← 返回首页
+			</a>
+		</div>
 
-        <Card.Root class="border-0 shadow-xl">
-            <Card.Content class="p-8 md:p-12">
-                <h1 class="mb-8 text-3xl font-bold md:text-4xl">
-                    Terms of Service
-                </h1>
-                <p class="mb-8 text-sm text-gray-600 dark:text-gray-400">
-                    Last updated: {new Date().toLocaleDateString()}
-                </p>
+		<h1 class="mb-2 text-3xl font-bold tracking-tight sm:text-4xl">服务条款</h1>
+		<p class="mb-10 text-sm text-muted-foreground">
+			最后更新：2025 年 1 月 1 日
+		</p>
 
-                <div class="space-y-8 text-gray-700 dark:text-gray-300">
-                    <section>
-                        <h2
-                            class="mb-4 text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                        >
-                            1. Acceptance of Terms
-                        </h2>
-                        <p class="leading-relaxed">
-                            By accessing and using SvelteKit Starter Kit
-                            ('Service'), you accept and agree to be bound by the
-                            terms and provisions of this agreement. If you do
-                            not agree to abide by the above, please do not use
-                            this Service.
-                        </p>
-                    </section>
+		<div class="prose prose-neutral dark:prose-invert max-w-none space-y-8">
+			<section>
+				<h2 class="text-xl font-semibold">1. 接受条款</h2>
+				<p>
+					访问和使用 BingWu AI（以下简称"服务"），即表示您接受并同意受本协议条款的约束。如果您不同意以上条款，请勿使用本服务。
+				</p>
+			</section>
 
-                    <section>
-                        <h2
-                            class="mb-4 text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                        >
-                            2. Description of Service
-                        </h2>
-                        <p class="leading-relaxed">
-                            SvelteKit Starter Kit provides a platform for
-                            building and deploying web applications. Our Service
-                            includes tools for authentication, subscription
-                            management, file uploads, and AI chat functionality.
-                        </p>
-                    </section>
+			<section>
+				<h2 class="text-xl font-semibold">2. 服务描述</h2>
+				<p>
+					BingWu AI 提供基于人工智能的创作平台，主要功能包括 AI 图片生成和 AI 智能对话。我们的服务采用积分制计费模式，用户通过兑换码充值积分后即可使用相关功能。
+				</p>
+			</section>
 
-                    <section>
-                        <h2
-                            class="mb-4 text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                        >
-                            3. User Accounts
-                        </h2>
-                        <div class="space-y-3">
-                            <p class="leading-relaxed">
-                                To use certain features of the Service, you must
-                                register for an account. When you register for
-                                an account, you agree to:
-                            </p>
-                            <ul class="ml-4 list-inside list-disc space-y-1">
-                                <li>
-                                    Provide accurate, current, and complete
-                                    information
-                                </li>
-                                <li>
-                                    Maintain and update your information to keep
-                                    it accurate and complete
-                                </li>
-                                <li>
-                                    Maintain the security of your account
-                                    credentials
-                                </li>
-                                <li>
-                                    Accept responsibility for all activities
-                                    that occur under your account
-                                </li>
-                                <li>
-                                    Notify us immediately of any unauthorized
-                                    use of your account
-                                </li>
-                            </ul>
-                        </div>
-                    </section>
+			<section>
+				<h2 class="text-xl font-semibold">3. 用户账号</h2>
+				<p>使用本服务的某些功能需要注册账号。注册账号时，您同意：</p>
+				<ul class="ml-4 mt-2 list-inside list-disc space-y-1 text-muted-foreground">
+					<li>提供准确、最新和完整的信息</li>
+					<li>维护和更新您的信息以保持准确和完整</li>
+					<li>维护您的账号凭据的安全</li>
+					<li>对您账号下发生的所有活动承担责任</li>
+					<li>发现账号被未经授权使用时立即通知我们</li>
+				</ul>
+			</section>
 
-                    <section>
-                        <h2
-                            class="mb-4 text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                        >
-                            4. Subscription and Payment
-                        </h2>
-                        <div class="space-y-3">
-                            <p class="leading-relaxed">
-                                Some aspects of our Service are provided on a
-                                subscription basis. By subscribing, you agree
-                                to:
-                            </p>
-                            <ul class="ml-4 list-inside list-disc space-y-1">
-                                <li>
-                                    Pay all applicable fees as described in our
-                                    pricing plans
-                                </li>
-                                <li>
-                                    Provide current, complete, and accurate
-                                    billing information
-                                </li>
-                                <li>
-                                    Authorize us to charge your payment method
-                                    on a recurring basis
-                                </li>
-                                <li>
-                                    Be responsible for all charges incurred
-                                    under your account
-                                </li>
-                            </ul>
-                            <p class="mt-3 leading-relaxed">
-                                Subscription fees are non-refundable except as
-                                required by law. We reserve the right to change
-                                our subscription plans or adjust pricing with 30
-                                days' notice.
-                            </p>
-                        </div>
-                    </section>
+			<section>
+				<h2 class="text-xl font-semibold">4. 积分与计费</h2>
+				<div class="space-y-3">
+					<p>本服务采用积分制计费，使用相关规则如下：</p>
+					<ul class="ml-4 list-inside list-disc space-y-1 text-muted-foreground">
+						<li>积分通过兑换码进行充值</li>
+						<li>AI 智能对话按 token 用量计费：输入 1 积分/千 tokens，输出 2 积分/千 tokens</li>
+						<li>AI 图片生成每次消耗固定 5 积分</li>
+						<li>积分一经消耗不予退还</li>
+						<li>积分永不过期</li>
+						<li>我们保留调整积分定价的权利，调整前会提前通知</li>
+					</ul>
+				</div>
+			</section>
 
-                    <section>
-                        <h2
-                            class="mb-4 text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                        >
-                            5. User Responsibilities and Conduct
-                        </h2>
-                        <div class="space-y-3">
-                            <p class="leading-relaxed">
-                                You agree to use the Service only for lawful
-                                purposes and in accordance with these Terms. You
-                                agree not to:
-                            </p>
-                            <ul class="ml-4 list-inside list-disc space-y-1">
-                                <li>
-                                    Use the Service in any way that violates any
-                                    applicable laws or regulations
-                                </li>
-                                <li>
-                                    Create content that is false, misleading, or
-                                    fraudulent
-                                </li>
-                                <li>
-                                    Impersonate any person or entity or
-                                    misrepresent your affiliation
-                                </li>
-                                <li>
-                                    Upload or transmit viruses or any other type
-                                    of malicious code
-                                </li>
-                                <li>
-                                    Attempt to gain unauthorized access to any
-                                    portion of the Service
-                                </li>
-                                <li>
-                                    Interfere with or disrupt the Service or
-                                    servers
-                                </li>
-                                <li>
-                                    Use the Service to send spam or unsolicited
-                                    communications
-                                </li>
-                                <li>Violate the privacy rights of others</li>
-                            </ul>
-                        </div>
-                    </section>
+			<section>
+				<h2 class="text-xl font-semibold">5. 用户行为准则</h2>
+				<p>您同意仅将本服务用于合法目的并遵守本条款。您同意不会：</p>
+				<ul class="ml-4 mt-2 list-inside list-disc space-y-1 text-muted-foreground">
+					<li>以违反任何适用法律法规的方式使用本服务</li>
+					<li>利用 AI 功能生成违法、有害、虚假或误导性的内容</li>
+					<li>冒充任何人或实体，或虚假陈述您的身份</li>
+					<li>上传或传播病毒或任何其他类型的恶意代码</li>
+					<li>试图未经授权访问本服务的任何部分</li>
+					<li>干扰或破坏本服务或服务器</li>
+					<li>利用本服务发送垃圾信息或未经请求的通信</li>
+					<li>侵犯他人的隐私权或知识产权</li>
+				</ul>
+			</section>
 
-                    <section>
-                        <h2
-                            class="mb-4 text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                        >
-                            6. Intellectual Property Rights
-                        </h2>
-                        <div class="space-y-3">
-                            <h3 class="mb-2 text-lg font-medium">
-                                Our Intellectual Property
-                            </h3>
-                            <p class="leading-relaxed">
-                                The Service and its original content, features,
-                                and functionality are owned by us and are
-                                protected by international copyright, trademark,
-                                patent, trade secret, and other intellectual
-                                property laws.
-                            </p>
+			<section>
+				<h2 class="text-xl font-semibold">6. 知识产权</h2>
+				<div class="space-y-3">
+					<div>
+						<h3 class="mb-2 font-medium">平台知识产权</h3>
+						<p>
+							本服务及其原始内容、功能和界面设计归我们所有，受国际版权、商标、专利、商业秘密和其他知识产权法律保护。
+						</p>
+					</div>
+					<div>
+						<h3 class="mb-2 font-medium">用户生成内容</h3>
+						<p>
+							您保留使用本服务创建的内容的所有权。使用本服务即表示您授予我们全球范围内非独占、免版税的许可，仅用于向您提供服务的目的使用、再现和显示您的内容。
+						</p>
+					</div>
+				</div>
+			</section>
 
-                            <h3 class="mb-2 mt-4 text-lg font-medium">
-                                Your Content
-                            </h3>
-                            <p class="leading-relaxed">
-                                You retain ownership of any content you create
-                                using our Service. By using our Service, you
-                                grant us a worldwide, non-exclusive,
-                                royalty-free license to use, reproduce, and
-                                display your content solely for the purpose of
-                                providing the Service to you.
-                            </p>
-                        </div>
-                    </section>
+			<section>
+				<h2 class="text-xl font-semibold">7. 免责声明</h2>
+				<p>
+					本服务按"现状"和"可用"基础提供，不提供任何形式的明示或暗示保证。AI 生成的内容可能存在不准确或不完整的情况，用户应自行判断和核实 AI 输出的内容。我们不对 AI 生成内容的准确性、完整性或适用性承担责任。
+				</p>
+			</section>
 
-                    <section>
-                        <h2
-                            class="mb-4 text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                        >
-                            7. Disclaimers
-                        </h2>
-                        <div class="space-y-3">
-                            <p class="font-medium uppercase leading-relaxed">
-                                The Service is provided on an 'AS IS' and 'AS
-                                AVAILABLE' basis without warranties of any kind,
-                                either express or implied, including but not
-                                limited to:
-                            </p>
-                            <ul class="ml-4 list-inside list-disc space-y-1">
-                                <li>Warranties of merchantability</li>
-                                <li>Fitness for a particular purpose</li>
-                                <li>Non-infringement</li>
-                                <li>
-                                    That the Service will be uninterrupted or
-                                    error-free
-                                </li>
-                                <li>That defects will be corrected</li>
-                                <li>
-                                    That the Service is free of viruses or
-                                    harmful components
-                                </li>
-                            </ul>
-                        </div>
-                    </section>
+			<section>
+				<h2 class="text-xl font-semibold">8. 责任限制</h2>
+				<p>
+					在法律允许的最大范围内，我们不对因您使用本服务而产生的任何间接、附带、特殊、后果性或惩罚性损害承担责任，包括但不限于利润损失、收入损失、数据丢失或其他无形损失。
+				</p>
+			</section>
 
-                    <section>
-                        <h2
-                            class="mb-4 text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                        >
-                            8. Limitation of Liability
-                        </h2>
-                        <p class="font-medium uppercase leading-relaxed">
-                            To the maximum extent permitted by law, we shall not
-                            be liable for any indirect, incidental, special,
-                            consequential, or punitive damages, or any loss of
-                            profits or revenues, whether incurred directly or
-                            indirectly, or any loss of data, use, goodwill, or
-                            other intangible losses resulting from your use of
-                            the Service.
-                        </p>
-                    </section>
+			<section>
+				<h2 class="text-xl font-semibold">9. 服务终止</h2>
+				<p>
+					我们可以在任何时候自行决定终止或暂停您的账号和服务访问权限，无需事先通知，包括但不限于您违反本条款的情况。账号终止后，您使用本服务的权利将立即停止。未消耗的积分在账号终止后不予退还。
+				</p>
+			</section>
 
-                    <section>
-                        <h2
-                            class="mb-4 text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                        >
-                            9. Termination
-                        </h2>
-                        <p class="leading-relaxed">
-                            We may terminate or suspend your account and bar
-                            access to the Service immediately, without prior
-                            notice or liability, under our sole discretion, for
-                            any reason whatsoever, including without limitation
-                            if you breach the Terms. Upon termination, your
-                            right to use the Service will cease immediately.
-                        </p>
-                    </section>
+			<section>
+				<h2 class="text-xl font-semibold">10. 适用法律</h2>
+				<p>
+					本条款受中华人民共和国法律管辖并按其解释。因本条款引起的或与之相关的任何争议，应提交有管辖权的人民法院解决。
+				</p>
+			</section>
 
-                    <section>
-                        <h2
-                            class="mb-4 text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                        >
-                            10. Governing Law
-                        </h2>
-                        <p class="leading-relaxed">
-                            These Terms shall be governed and construed in
-                            accordance with the laws of [Your Jurisdiction],
-                            without regard to its conflict of law provisions.
-                            Our failure to enforce any right or provision of
-                            these Terms will not be considered a waiver of those
-                            rights.
-                        </p>
-                    </section>
+			<section>
+				<h2 class="text-xl font-semibold">11. 联系方式</h2>
+				<p>如果您对本服务条款有任何疑问，请通过以下方式联系我们：</p>
+				<div class="mt-3 space-y-1 text-muted-foreground">
+					<p>邮箱：support@bingwu.ai</p>
+				</div>
+			</section>
 
-                    <section>
-                        <h2
-                            class="mb-4 text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                        >
-                            11. Contact Information
-                        </h2>
-                        <p class="leading-relaxed">
-                            If you have any questions about these Terms, please
-                            contact us at:
-                        </p>
-                        <div class="mt-3 space-y-1">
-                            <p>Email: legal@example.com</p>
-                            <p>Address: [Your Company Address]</p>
-                        </div>
-                    </section>
-
-                    <section
-                        class="border-t border-gray-200 pt-8 dark:border-gray-700"
-                    >
-                        <p class="text-sm text-gray-600 dark:text-gray-400">
-                            By using SvelteKit Starter Kit, you acknowledge that
-                            you have read, understood, and agree to be bound by
-                            these Terms of Service.
-                        </p>
-                    </section>
-                </div>
-            </Card.Content>
-        </Card.Root>
-    </div>
+			<section class="border-t pt-8">
+				<p class="text-sm text-muted-foreground">
+					使用 BingWu AI 即表示您已阅读、理解并同意受本服务条款的约束。
+				</p>
+			</section>
+		</div>
+	</div>
 </div>

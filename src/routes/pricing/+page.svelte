@@ -1,8 +1,87 @@
-<div class="flex min-h-screen w-full flex-col items-center justify-center">
-	    <div class="w-full max-w-xl px-6 text-center">
-	        <h1 class="text-3xl font-semibold tracking-tight">Pricing</h1>
-	        <p class="text-muted-foreground mt-3">
-	            Pricing is not configured in this starter kit right now.
-	        </p>
-	    </div>
+<script lang="ts">
+	import { goto } from "$app/navigation";
+	import { onMount } from "svelte";
+	import GetStartedButton from "$lib/components/common/GetStartedButton.svelte";
+	import { defaultRoute } from "$lib/config/navigation";
+	import { ImageIcon, MessageCircle, Check } from "lucide-svelte";
+
+	const pricingItems = [
+		{
+			icon: MessageCircle,
+			name: "AI 智能对话",
+			price: "按量计费",
+			detail: "输入 1 积分/千 tokens，输出 2 积分/千 tokens",
+			minimum: "单次最低 1 积分",
+		},
+		{
+			icon: ImageIcon,
+			name: "AI 图片生成",
+			price: "固定 5 积分",
+			detail: "每次生成消耗 5 积分",
+			minimum: "支持文生图和图生图",
+		},
+	];
+
+	const benefits = [
+		"注册即可体验",
+		"无月费，无订阅",
+		"积分永不过期",
+		"透明定价，无隐藏费用",
+		"兑换码充值，灵活便捷",
+		"余额不足自动提醒",
+	];
+</script>
+
+<svelte:head>
+	<title>定价 - BingWu AI</title>
+</svelte:head>
+
+<div class="flex min-h-screen w-full flex-col items-center px-6 py-16">
+	<div class="w-full max-w-3xl">
+		<div class="text-center">
+			<h1 class="text-3xl font-bold tracking-tight sm:text-4xl">简单透明的定价</h1>
+			<p class="mt-4 text-lg text-muted-foreground">按需付费，用多少扣多少，不用不花钱</p>
+		</div>
+
+		<div class="mt-12 grid gap-8 lg:grid-cols-2">
+			<div class="space-y-4">
+				{#each pricingItems as item}
+					<div class="rounded-2xl border bg-card p-6">
+						<div class="flex items-start gap-4">
+							<div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+								<item.icon class="h-6 w-6 text-primary" />
+							</div>
+							<div class="flex-1">
+								<div class="flex items-baseline justify-between">
+									<h3 class="text-lg font-semibold">{item.name}</h3>
+									<span class="text-sm font-medium text-primary">{item.price}</span>
+								</div>
+								<p class="mt-1 text-sm text-muted-foreground">{item.detail}</p>
+								<p class="mt-0.5 text-xs text-muted-foreground">{item.minimum}</p>
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+
+			<div class="rounded-2xl border bg-card p-8">
+				<h3 class="text-lg font-semibold">为什么选择积分制？</h3>
+				<ul class="mt-6 space-y-4">
+					{#each benefits as benefit}
+						<li class="flex items-center gap-3">
+							<div class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
+								<Check class="h-3 w-3 text-primary" />
+							</div>
+							<span class="text-sm text-muted-foreground">{benefit}</span>
+						</li>
+					{/each}
+				</ul>
+				<div class="mt-8">
+					<GetStartedButton href={defaultRoute} variant="default" size="default" class="w-full">
+						<span class="text-nowrap">立即注册，开始体验</span>
+					</GetStartedButton>
+				</div>
+			</div>
+		</div>
+	</div>
 </div>

@@ -48,7 +48,7 @@
     onclick={handleClick}
 >
     {#if isAuthenticated === false}
-        Sign In to Get Started
+        登录开始创作
     {:else}
         {@render children?.()}
     {/if}

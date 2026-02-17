@@ -9,7 +9,7 @@
 <header class="bg-background flex h-14 items-center justify-between border-b px-4">
     <!-- Left: Logo (mobile only) -->
     <a href="/" class="flex items-center font-semibold min-[1024px]:hidden">
-        <span>SaaS</span>
+        <span>BingWu AI</span>
     </a>
 
     <!-- Spacer for desktop (sidebar has logo) -->

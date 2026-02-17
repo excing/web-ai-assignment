@@ -20,8 +20,8 @@
 <!-- Desktop Sidebar -->
 <div class="bg-background hidden h-full w-16 flex-col items-center border-r py-4 min-[1024px]:flex">
     <!-- Logo -->
-    <a href="/" class="mb-6 flex h-10 w-10 items-center justify-center rounded-lg font-bold text-lg hover:opacity-80">
-        S
+    <a href="/" class="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 font-bold text-lg text-primary hover:opacity-80">
+        B
     </a>
 
     <!-- Main Nav -->
