@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { UserPlus, MousePointerClick, Wand2 } from "lucide-svelte";
+	import { UserPlus, Wallet, Wand2 } from "lucide-svelte";
 
 	const steps = [
 		{
@@ -9,10 +9,10 @@
 			description: "邮箱注册或 Google 一键登录，30 秒完成账号创建。",
 		},
 		{
-			icon: MousePointerClick,
+			icon: Wallet,
 			step: "02",
-			title: "选择功能",
-			description: "AI 图片生成或 AI 智能对话，选择你需要的创作工具。",
+			title: "获取积分",
+			description: "通过兑换码充值积分，按需使用，用多少花多少。",
 		},
 		{
 			icon: Wand2,

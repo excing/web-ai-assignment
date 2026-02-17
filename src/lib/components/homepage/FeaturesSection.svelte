@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ImageIcon, MessageCircle, Sparkles, Zap, Shield, Layers } from "lucide-svelte";
+	import { ImageIcon, MessageCircle, Coins, Zap, Shield, Layers } from "lucide-svelte";
 
 	const features = [
 		{
@@ -13,9 +13,9 @@
 			description: "与 AI 进行多轮对话，实时流式响应。支持发送图片附件，代码高亮显示，助力你的工作与创作。",
 		},
 		{
-			icon: Sparkles,
-			title: "免费体验",
-			description: "注册即可体验全部 AI 功能，无需付费，无订阅门槛。快来感受 AI 创作的魅力。",
+			icon: Coins,
+			title: "积分制计费",
+			description: "灵活的按需付费模式，用多少扣多少。通过兑换码充值积分，定价透明，无隐藏费用。",
 		},
 		{
 			icon: Zap,

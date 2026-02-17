@@ -29,7 +29,7 @@
 			<section>
 				<h2 class="text-xl font-semibold">2. 服务描述</h2>
 				<p>
-					BingWu AI 提供基于人工智能的创作平台，主要功能包括 AI 图片生成和 AI 智能对话。当前为试运行阶段，注册即可免费体验全部功能。
+					BingWu AI 提供基于人工智能的创作平台，主要功能包括 AI 图片生成和 AI 智能对话。我们的服务采用积分制计费模式，用户通过兑换码充值积分后即可使用相关功能。
 				</p>
 			</section>
 
@@ -46,13 +46,16 @@
 			</section>
 
 			<section>
-				<h2 class="text-xl font-semibold">4. 服务使用</h2>
+				<h2 class="text-xl font-semibold">4. 积分与计费</h2>
 				<div class="space-y-3">
-					<p>本服务当前处于试运行阶段，具体计费方案尚未确定。使用相关规则如下：</p>
+					<p>本服务采用积分制计费，使用相关规则如下：</p>
 					<ul class="ml-4 list-inside list-disc space-y-1 text-muted-foreground">
-						<li>试运行期间，功能免费体验</li>
-						<li>正式计费方案将另行公布</li>
-						<li>计费规则变更前会提前通知用户</li>
+						<li>积分通过兑换码进行充值</li>
+						<li>AI 智能对话按 token 用量计费：输入 1 积分/千 tokens，输出 2 积分/千 tokens</li>
+						<li>AI 图片生成每次消耗固定 5 积分</li>
+						<li>积分一经消耗不予退还</li>
+						<li>积分永不过期</li>
+						<li>我们保留调整积分定价的权利，调整前会提前通知</li>
 					</ul>
 				</div>
 			</section>
@@ -107,7 +110,7 @@
 			<section>
 				<h2 class="text-xl font-semibold">9. 服务终止</h2>
 				<p>
-					我们可以在任何时候自行决定终止或暂停您的账号和服务访问权限，无需事先通知，包括但不限于您违反本条款的情况。账号终止后，您使用本服务的权利将立即停止。
+					我们可以在任何时候自行决定终止或暂停您的账号和服务访问权限，无需事先通知，包括但不限于您违反本条款的情况。账号终止后，您使用本服务的权利将立即停止。未消耗的积分在账号终止后不予退还。
 				</p>
 			</section>
 
