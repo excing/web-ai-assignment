@@ -51,8 +51,8 @@
 					<p>本服务采用积分制计费，使用相关规则如下：</p>
 					<ul class="ml-4 list-inside list-disc space-y-1 text-muted-foreground">
 						<li>积分通过兑换码进行充值</li>
-						<li>AI 智能对话按 token 用量计费：输入 1 积分/千 tokens，输出 2 积分/千 tokens</li>
-						<li>AI 图片生成每次消耗固定 5 积分</li>
+						<li>AI 智能对话按实际使用的 token 数量计费</li>
+						<li>AI 图片生成每次消耗固定积分</li>
 						<li>积分一经消耗不予退还</li>
 						<li>积分永不过期</li>
 						<li>我们保留调整积分定价的权利，调整前会提前通知</li>

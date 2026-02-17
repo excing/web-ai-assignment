@@ -9,14 +9,14 @@
 			icon: MessageCircle,
 			name: "AI 智能对话",
 			price: "按量计费",
-			detail: "输入 1 积分/千 tokens，输出 2 积分/千 tokens",
-			minimum: "单次最低 1 积分",
+			detail: "按实际使用的 token 数量计费",
+			minimum: "多轮对话，实时流式响应",
 		},
 		{
 			icon: ImageIcon,
 			name: "AI 图片生成",
-			price: "固定 5 积分",
-			detail: "每次生成消耗 5 积分",
+			price: "按次计费",
+			detail: "每次生成消耗固定积分",
 			minimum: "支持文生图和图生图",
 		},
 	];
