@@ -9,18 +9,14 @@ export {
     refundRedemption,
 } from './credit-service';
 
-// 计费中间件
-export { billingPreCheck, billingPostPayment, wrapStreamingResponse } from './billing-middleware';
-export { findBilledRoute } from './billing-registry';
+// 计费服务
 export { deductCredits } from './deduction-service';
+export { BillingService, InsufficientBalanceError } from './billing-service';
 export type {
-    BillingStrategy,
-    BillingMode,
-    BilledRouteConfig,
-    BillingContext,
-    CostEstimate,
-    ActualCost,
     DeductionInput,
     DeductionResult,
-    ResponseType,
 } from './billing-types';
+export type {
+    TokenUsage,
+    DynamicPricing,
+} from './billing-service';

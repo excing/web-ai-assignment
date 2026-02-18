@@ -135,6 +135,84 @@
 					启用
 				</label>
 			</div>
+
+			<!-- 计费配置 -->
+			<div class="border-t pt-4 mt-2">
+				<h4 class="text-sm font-medium mb-3">计费配置</h4>
+				<div class="grid gap-3">
+					<div class="grid gap-2">
+						<Label>计费模式</Label>
+						<Select.Root type="single" bind:value={aiProxyAssignmentsStore.assignmentForm.billingMode}>
+							<Select.Trigger class="w-full">
+								{#if aiProxyAssignmentsStore.assignmentForm.billingMode === 'fixed'}
+									固定计费
+								{:else if aiProxyAssignmentsStore.assignmentForm.billingMode === 'dynamic'}
+									动态计费（按 Token）
+								{:else}
+									不计费
+								{/if}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="" label="不计费" />
+								<Select.Item value="fixed" label="固定计费" />
+								<Select.Item value="dynamic" label="动态计费（按 Token）" />
+							</Select.Content>
+						</Select.Root>
+					</div>
+
+					{#if aiProxyAssignmentsStore.assignmentForm.billingMode === 'fixed'}
+						<div class="grid gap-2">
+							<Label for="asgn-minimum">固定扣费积分 *</Label>
+							<Input
+								id="asgn-minimum"
+								type="number"
+								min="1"
+								step="1"
+								placeholder="5"
+								bind:value={aiProxyAssignmentsStore.assignmentForm.minimum}
+							/>
+							<p class="text-xs text-muted-foreground">每次调用固定扣除的积分数</p>
+						</div>
+					{:else if aiProxyAssignmentsStore.assignmentForm.billingMode === 'dynamic'}
+						<div class="grid grid-cols-2 gap-3">
+							<div class="grid gap-2">
+								<Label for="asgn-input-per1k">输入积分/千tokens</Label>
+								<Input
+									id="asgn-input-per1k"
+									type="number"
+									min="0"
+									step="1"
+									placeholder="1"
+									bind:value={aiProxyAssignmentsStore.assignmentForm.inputPer1k}
+								/>
+							</div>
+							<div class="grid gap-2">
+								<Label for="asgn-output-per1k">输出积分/千tokens</Label>
+								<Input
+									id="asgn-output-per1k"
+									type="number"
+									min="0"
+									step="1"
+									placeholder="2"
+									bind:value={aiProxyAssignmentsStore.assignmentForm.outputPer1k}
+								/>
+							</div>
+						</div>
+						<div class="grid gap-2">
+							<Label for="asgn-minimum-dynamic">最低消费积分</Label>
+							<Input
+								id="asgn-minimum-dynamic"
+								type="number"
+								min="1"
+								step="1"
+								placeholder="1"
+								bind:value={aiProxyAssignmentsStore.assignmentForm.minimum}
+							/>
+							<p class="text-xs text-muted-foreground">动态计算后的费用低于此值时，按此值扣费</p>
+						</div>
+					{/if}
+				</div>
+			</div>
 		</div>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (open = false)}>取消</Button>

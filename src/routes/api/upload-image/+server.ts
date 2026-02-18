@@ -2,6 +2,9 @@ import { uploadImageAssets } from '$lib/server/upload-image';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { randomUUID } from 'crypto';
+import { env } from '$env/dynamic/private';
+import { getBalance } from '$lib/server/credits/credit-service';
+import { deductCredits } from '$lib/server/credits/deduction-service';
 
 // MIME 类型到合法扩展名的映射
 const mimeToExtensions: Record<string, string[]> = {
@@ -12,8 +15,28 @@ const mimeToExtensions: Record<string, string[]> = {
 };
 const allowedMimeTypes = Object.keys(mimeToExtensions);
 
+function getUploadCreditCost(): number {
+    return parseInt(env.CREDITS_UPLOAD_COST ?? '5', 10);
+}
+
 export const POST: RequestHandler = async ({ request, locals }) => {
+    const userId = locals.session?.user?.id;
+
     try {
+        // 计费预检
+        if (userId) {
+            const cost = getUploadCreditCost();
+            const balance = await getBalance(userId);
+            if (balance < cost) {
+                return json({
+                    error: '积分余额不足',
+                    required: cost,
+                    current: balance,
+                    description: `文件上传 - ${cost} 积分`,
+                }, { status: 402 });
+            }
+        }
+
         const formData = await request.formData();
         const file = formData.get('file') as File | null;
 
@@ -46,6 +69,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // Upload the file
         const url = await uploadImageAssets(buffer, filename, file.type);
+
+        // 计费扣款
+        if (userId) {
+            const cost = getUploadCreditCost();
+            await deductCredits({
+                userId,
+                amount: cost,
+                description: '文件上传扣费',
+                metadata: { type: 'upload', fixedCost: cost },
+                endpoint: '/api/upload-image',
+            });
+        }
 
         return json({ url });
     } catch (error) {

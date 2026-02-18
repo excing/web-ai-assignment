@@ -22,6 +22,10 @@ export const GET: RequestHandler = async ({ url }) => {
                 proxyId: aiProxyAssignment.proxyId,
                 defaultModel: aiProxyAssignment.defaultModel,
                 isActive: aiProxyAssignment.isActive,
+                billingMode: aiProxyAssignment.billingMode,
+                inputPer1k: aiProxyAssignment.inputPer1k,
+                outputPer1k: aiProxyAssignment.outputPer1k,
+                minimum: aiProxyAssignment.minimum,
                 healthStatus: aiProxyAssignment.healthStatus,
                 unhealthyCount: aiProxyAssignment.unhealthyCount,
                 lastError: aiProxyAssignment.lastError,
@@ -60,7 +64,7 @@ export const GET: RequestHandler = async ({ url }) => {
 export const POST: RequestHandler = async ({ request }) => {
     try {
         const body = await request.json();
-        const { name, description, featureKey, proxyId, defaultModel, isActive } = body;
+        const { name, description, featureKey, proxyId, defaultModel, isActive, billingMode, inputPer1k, outputPer1k, minimum } = body;
 
         if (!name || !featureKey || !proxyId) {
             return errorResponse(new ValidationError('请填写名称、功能标识和 Proxy'));
@@ -88,6 +92,10 @@ export const POST: RequestHandler = async ({ request }) => {
                 proxyId,
                 defaultModel: defaultModel || null,
                 isActive: isActive !== undefined ? Boolean(isActive) : true,
+                billingMode: billingMode || null,
+                inputPer1k: inputPer1k != null ? Number(inputPer1k) : null,
+                outputPer1k: outputPer1k != null ? Number(outputPer1k) : null,
+                minimum: minimum != null ? Number(minimum) : null,
             })
             .returning();
 

@@ -21,6 +21,12 @@ export interface AiProxyAssignment {
 	proxyId: string;
 	defaultModel: string | null;
 	isActive: boolean;
+	// 计费配置
+	billingMode: string | null;
+	inputPer1k: number | null;
+	outputPer1k: number | null;
+	minimum: number | null;
+	// 健康检查
 	healthStatus: string;
 	unhealthyCount: number;
 	lastError: string | null;
@@ -51,4 +57,9 @@ export interface AssignmentFormData {
 	proxyId: string;
 	defaultModel: string;
 	isActive: boolean;
+	// 计费配置
+	billingMode: string; // '' | 'fixed' | 'dynamic'
+	inputPer1k: string;
+	outputPer1k: string;
+	minimum: string;
 }

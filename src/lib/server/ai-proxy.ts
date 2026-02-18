@@ -32,6 +32,11 @@ export interface ProxyConfig {
     apiKey: string; // 已解密
     model: string;
     assignmentId: string;
+    // 计费配置
+    billingMode?: string | null;   // 'fixed' | 'dynamic' | null
+    inputPer1k?: number | null;
+    outputPer1k?: number | null;
+    minimum?: number | null;
 }
 
 interface InternalProxyConfig extends ProxyConfig {
@@ -82,6 +87,10 @@ export async function getProxyForFeature(featureKey: string): Promise<ProxyConfi
             featureKey: aiProxyAssignment.featureKey,
             defaultModel: aiProxyAssignment.defaultModel,
             healthStatus: aiProxyAssignment.healthStatus,
+            billingMode: aiProxyAssignment.billingMode,
+            inputPer1k: aiProxyAssignment.inputPer1k,
+            outputPer1k: aiProxyAssignment.outputPer1k,
+            minimum: aiProxyAssignment.minimum,
             proxyId: aiProxy.id,
             proxyName: aiProxy.name,
             provider: aiProxy.provider,
@@ -116,6 +125,10 @@ export async function getProxyForFeature(featureKey: string): Promise<ProxyConfi
             apiKey: a.apiKey,
             model,
             assignmentId: a.assignmentId,
+            billingMode: a.billingMode,
+            inputPer1k: a.inputPer1k,
+            outputPer1k: a.outputPer1k,
+            minimum: a.minimum,
             _healthStatus: a.healthStatus,
         } as InternalProxyConfig;
     });

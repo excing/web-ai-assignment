@@ -150,6 +150,11 @@ export const aiProxyAssignment = pgTable('ai_proxy_assignment', {
         .references(() => aiProxy.id, { onDelete: 'cascade' }),
     defaultModel: text('default_model'), // 该功能的默认模型
     isActive: boolean('is_active').notNull().default(true),
+    // 计费配置
+    billingMode: text('billing_mode'), // 'fixed' | 'dynamic' | null
+    inputPer1k: integer('input_per_1k'), // 每千 tokens 输入费用（积分）
+    outputPer1k: integer('output_per_1k'), // 每千 tokens 输出费用（积分）
+    minimum: integer('minimum'), // 最小扣款（固定模式下为固定扣费积分）
     // 被动健康检查
     healthStatus: text('health_status').notNull().default('healthy'), // 'healthy' | 'unhealthy'
     unhealthyCount: integer('unhealthy_count').notNull().default(0), // 连续失败次数

@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { createChatService } from '$lib/server/services/chat-service';
 import { parseRequestBody, validateChatMessages } from '$lib/server/services/validation';
+import { InsufficientBalanceError } from '$lib/server/credits/billing-service';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	// 1. 解析请求体
@@ -22,7 +23,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		feature: 'chat',
 		maxOutputTokens: 4096,
 		reasoningTagName: 'think',
-		billingContext: locals.billingContext
+		userId: locals.session?.user?.id
 	});
 
 	try {
@@ -32,6 +33,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		return result.toUIMessageStreamResponse();
 	} catch (error) {
+		if (error instanceof InsufficientBalanceError) {
+			return json({
+				error: error.message,
+				required: error.required,
+				current: error.current,
+				description: error.description,
+			}, { status: 402 });
+		}
 		return json({ error: 'AI 服务暂时不可用，请稍后重试' }, { status: 502 });
 	}
 };

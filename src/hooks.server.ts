@@ -2,11 +2,6 @@ import { auth } from '$lib/server/auth';
 import { redirect, type Handle, json } from '@sveltejs/kit';
 import { isAdmin } from '$lib/server/credits/admin';
 import {
-	billingPreCheck,
-	billingPostPayment,
-	wrapStreamingResponse,
-} from '$lib/server/credits/billing-middleware';
-import {
 	protectedPrefixes,
 	authPages,
 	defaultRoute,
@@ -59,26 +54,5 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	// ── 计费预检 ──
-	const billingBlock = await billingPreCheck(event);
-	if (billingBlock) {
-		return billingBlock; // 402 - 余额不足
-	}
-
-	// ── 执行请求 ──
-	const response = await resolve(event);
-
-	// ── 计费后付 ──
-	const ctx = event.locals.billingContext;
-	if (ctx && response.ok) {
-		if (ctx.routeConfig.responseType === 'streaming') {
-			return wrapStreamingResponse(response, event);
-		} else {
-			// 标准响应：固定计费无需用量数据，直接 resolve
-			ctx.resolveUsageData();
-			await billingPostPayment(event);
-		}
-	}
-
-	return response;
+	return await resolve(event);
 };

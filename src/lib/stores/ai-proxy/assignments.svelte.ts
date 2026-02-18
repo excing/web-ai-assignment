@@ -24,7 +24,11 @@ class AiProxyAssignmentsStore {
 		featureKey: '',
 		proxyId: '',
 		defaultModel: '',
-		isActive: true
+		isActive: true,
+		billingMode: '',
+		inputPer1k: '',
+		outputPer1k: '',
+		minimum: ''
 	});
 	savingAssignment = $state(false);
 
@@ -107,7 +111,11 @@ class AiProxyAssignmentsStore {
 					featureKey: this.assignmentForm.featureKey,
 					proxyId: this.assignmentForm.proxyId,
 					defaultModel: this.assignmentForm.defaultModel || null,
-					isActive: this.assignmentForm.isActive
+					isActive: this.assignmentForm.isActive,
+					billingMode: this.assignmentForm.billingMode || null,
+					inputPer1k: this.assignmentForm.inputPer1k ? Number(this.assignmentForm.inputPer1k) : null,
+					outputPer1k: this.assignmentForm.outputPer1k ? Number(this.assignmentForm.outputPer1k) : null,
+					minimum: this.assignmentForm.minimum ? Number(this.assignmentForm.minimum) : null
 				})
 			});
 
@@ -148,7 +156,11 @@ class AiProxyAssignmentsStore {
 					featureKey: this.assignmentForm.featureKey,
 					proxyId: this.assignmentForm.proxyId,
 					defaultModel: this.assignmentForm.defaultModel || null,
-					isActive: this.assignmentForm.isActive
+					isActive: this.assignmentForm.isActive,
+					billingMode: this.assignmentForm.billingMode || null,
+					inputPer1k: this.assignmentForm.inputPer1k ? Number(this.assignmentForm.inputPer1k) : null,
+					outputPer1k: this.assignmentForm.outputPer1k ? Number(this.assignmentForm.outputPer1k) : null,
+					minimum: this.assignmentForm.minimum ? Number(this.assignmentForm.minimum) : null
 				})
 			});
 
@@ -163,6 +175,10 @@ class AiProxyAssignmentsStore {
 					proxyId: updated.proxyId,
 					defaultModel: updated.defaultModel,
 					isActive: updated.isActive,
+					billingMode: updated.billingMode,
+					inputPer1k: updated.inputPer1k,
+					outputPer1k: updated.outputPer1k,
+					minimum: updated.minimum,
 					updatedAt: updated.updatedAt,
 					...(proxy ? {
 						proxyName: proxy.name,
@@ -295,7 +311,11 @@ class AiProxyAssignmentsStore {
 			featureKey: assignment.featureKey,
 			proxyId: assignment.proxyId,
 			defaultModel: assignment.defaultModel || '',
-			isActive: assignment.isActive
+			isActive: assignment.isActive,
+			billingMode: assignment.billingMode || '',
+			inputPer1k: assignment.inputPer1k != null ? String(assignment.inputPer1k) : '',
+			outputPer1k: assignment.outputPer1k != null ? String(assignment.outputPer1k) : '',
+			minimum: assignment.minimum != null ? String(assignment.minimum) : ''
 		};
 		this.editAssignmentDialogOpen = true;
 	}
@@ -308,7 +328,11 @@ class AiProxyAssignmentsStore {
 			featureKey: '',
 			proxyId: '',
 			defaultModel: '',
-			isActive: true
+			isActive: true,
+			billingMode: '',
+			inputPer1k: '',
+			outputPer1k: '',
+			minimum: ''
 		};
 		aiProxyProxiesStore.availableModels = [];
 		aiProxyProxiesStore.modelTestStatus = new Map();

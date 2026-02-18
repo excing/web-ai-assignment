@@ -15,7 +15,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 
     try {
         const body = await request.json();
-        const { name, description, featureKey, proxyId, defaultModel, isActive } = body;
+        const { name, description, featureKey, proxyId, defaultModel, isActive, billingMode, inputPer1k, outputPer1k, minimum } = body;
 
         if (!name || !featureKey || !proxyId) {
             return errorResponse(new ValidationError('请填写名称、功能标识和 Proxy'));
@@ -30,6 +30,10 @@ export const PUT: RequestHandler = async ({ params, request }) => {
                 proxyId,
                 defaultModel: defaultModel || null,
                 isActive: Boolean(isActive),
+                billingMode: billingMode || null,
+                inputPer1k: inputPer1k != null ? Number(inputPer1k) : null,
+                outputPer1k: outputPer1k != null ? Number(outputPer1k) : null,
+                minimum: minimum != null ? Number(minimum) : null,
                 updatedAt: new Date()
             })
             .where(eq(aiProxyAssignment.id, assignmentId))

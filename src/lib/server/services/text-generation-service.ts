@@ -12,6 +12,7 @@ import {
 	reportAssignmentFailure,
 	type ProxyConfig
 } from '$lib/server/ai-proxy';
+import { BillingService } from '$lib/server/credits/billing-service';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('text-generation-service');
@@ -30,11 +31,8 @@ export interface TextGenerationServiceOptions {
 	temperature?: number;
 	/** Top P 参数（0-1，控制多样性） */
 	topP?: number;
-	/** 计费上下文（可选） */
-	billingContext?: {
-		usageData?: unknown;
-		resolveUsageData: () => void;
-	};
+	/** 用户 ID（用于计费，不传则不计费） */
+	userId?: string;
 }
 
 /**
@@ -362,11 +360,21 @@ export class TextGenerationService {
 
 		const model = this.createModel();
 		const {
-			billingContext,
 			maxOutputTokens = 4096,
 			temperature,
 			topP
 		} = this.options;
+
+		// 计费预检
+		const billingService = this.options.userId
+			? new BillingService(this.options.userId)
+			: null;
+		if (billingService) {
+			await billingService.autoPreCheck(this.proxyConfig, {
+				maxOutputTokens,
+				description: '图像生成',
+			});
+		}
 
 		try {
 			const result = await generateText({
@@ -380,10 +388,15 @@ export class TextGenerationService {
 			// 记录 Assignment 请求成功
 			await reportAssignmentSuccess(this.proxyConfig.assignmentId);
 
-			// 计费回调
-			if (billingContext) {
-				billingContext.usageData = result.usage;
-				billingContext.resolveUsageData();
+			// 计费扣款
+			if (billingService) {
+				await billingService.autoCharge(this.proxyConfig, {
+					usage: {
+						promptTokens: result.usage.inputTokens || 0,
+						completionTokens: result.usage.outputTokens || 0,
+					},
+					description: `图像生成扣费 - 输入${result.usage.inputTokens || 0}tokens/输出${result.usage.outputTokens || 0}tokens`,
+				});
 			}
 
 			// 构造响应

@@ -12,6 +12,7 @@ import {
 	reportAssignmentFailure,
 	type ProxyConfig
 } from '$lib/server/ai-proxy';
+import { BillingService } from '$lib/server/credits/billing-service';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('chat-service');
@@ -26,11 +27,8 @@ export interface ChatServiceOptions {
 	maxOutputTokens?: number;
 	/** 推理标签名称（用于提取 <think> 等标签内容） */
 	reasoningTagName?: string;
-	/** 计费上下文（可选） */
-	billingContext?: {
-		usageData?: unknown;
-		resolveUsageData: () => void;
-	};
+	/** 用户 ID（用于计费，不传则不计费） */
+	userId?: string;
 }
 
 /**
@@ -95,7 +93,20 @@ export class ChatService {
 		}
 
 		const model = this.createModel();
-		const { billingContext, maxOutputTokens = 4096 } = this.options;
+		const maxOutputTokens = this.options.maxOutputTokens ?? 4096;
+
+		// 计费预检
+		const billingService = this.options.userId
+			? new BillingService(this.options.userId)
+			: null;
+		if (billingService) {
+			await billingService.autoPreCheck(this.proxyConfig, {
+				maxOutputTokens,
+				description: 'AI 对话',
+			});
+		}
+
+		const proxyConfig = this.proxyConfig;
 
 		try {
 			const result = streamText({
@@ -104,19 +115,24 @@ export class ChatService {
 				maxOutputTokens,
 				onFinish: async ({ usage }) => {
 					// 记录 Assignment 请求成功
-					await reportAssignmentSuccess(this.proxyConfig!.assignmentId);
+					await reportAssignmentSuccess(proxyConfig.assignmentId);
 
-					// 计费回调
-					if (billingContext) {
-						billingContext.usageData = usage;
-						billingContext.resolveUsageData();
+					// 计费扣款
+					if (billingService) {
+						await billingService.autoCharge(proxyConfig, {
+							usage: {
+								promptTokens: usage.inputTokens || 0,
+								completionTokens: usage.outputTokens || 0,
+							},
+							description: `AI 对话扣费 - 输入${usage.inputTokens || 0}tokens/输出${usage.outputTokens || 0}tokens`,
+						});
 					}
 				},
 				onError: async ({ error }) => {
 					// 流式传输中途出错，报告 Assignment 失败
 					const errorMsg = error instanceof Error ? error.message : String(error);
 					log.error('AI 流式响应错误', undefined, { error: errorMsg });
-					await reportAssignmentFailure(this.proxyConfig!.assignmentId, errorMsg);
+					await reportAssignmentFailure(proxyConfig.assignmentId, errorMsg);
 				}
 			});
 
@@ -125,7 +141,7 @@ export class ChatService {
 			// streamText 初始化失败（如网络不可达、API Key 无效等）
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			log.error('AI 请求失败', error instanceof Error ? error : new Error(String(error)));
-			await reportAssignmentFailure(this.proxyConfig!.assignmentId, errorMsg);
+			await reportAssignmentFailure(proxyConfig.assignmentId, errorMsg);
 			throw error;
 		}
 	}
