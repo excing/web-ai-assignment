@@ -16,6 +16,7 @@
 		Rocket
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+	import { onMount } from 'svelte';
 	import { taskManager, type MediaResource } from '$lib/stores/task-manager.svelte';
 	import ImageGallery from '$lib/components/image-gallery.svelte';
 	import { CHAT_ATTACHMENTS, UI } from '$lib/config/constants';
@@ -29,6 +30,10 @@
 	let attachedFiles = $state<Array<{ id: string; file: File; previewUrl: string }>>([]);
 	let isDragging = $state(false);
 	let textareaRef = $state<HTMLTextAreaElement | null>(null);
+
+	onMount(() => {
+		taskManager.loadFromHistory();
+	});
 
 	function openGallery(images: MediaResource[], index: number) {
 		galleryImages = images;

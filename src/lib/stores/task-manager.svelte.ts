@@ -2,6 +2,7 @@ import { toast } from 'svelte-sonner';
 import { refreshCurrentUser } from './auth.svelte';
 import { fetchCreditBalance } from './credits.svelte';
 import { generateUUID } from '$lib/utils/uuid';
+import { saveImageGenTasks, loadImageGenTasks, clearImageGenHistory } from './image-gen-history.svelte';
 
 
 export interface MediaResource {
@@ -31,6 +32,37 @@ class TaskManager {
 	maxConcurrentTasks = 3;
 
 	private runningTasks = 0;
+	private saveTimeout: ReturnType<typeof setTimeout> | null = null;
+	private historyLoaded = false;
+
+	/**
+	 * 从 IndexedDB 加载历史任务
+	 */
+	async loadFromHistory(): Promise<void> {
+		if (this.historyLoaded) return;
+		this.historyLoaded = true;
+		try {
+			const tasks = await loadImageGenTasks();
+			if (tasks.length > 0) {
+				this.tasks = tasks;
+				this.processQueue();
+			}
+		} catch (err) {
+			console.warn('Failed to load image-gen history:', err);
+		}
+	}
+
+	/**
+	 * 防抖自动保存到 IndexedDB
+	 */
+	private scheduleSave() {
+		if (this.saveTimeout) clearTimeout(this.saveTimeout);
+		this.saveTimeout = setTimeout(() => {
+			saveImageGenTasks(this.tasks).catch((err) =>
+				console.warn('Failed to save image-gen tasks:', err)
+			);
+		}, 500);
+	}
 
 	/**
 	 * 将 File 转换为 base64 data URL
@@ -76,6 +108,7 @@ class TaskManager {
 		this.tasks = [task, ...this.tasks];
 		console.log('Tasks after adding:', this.tasks.length);
 
+		this.scheduleSave();
 		this.processQueue();
 		return task.id;
 	}
@@ -197,6 +230,7 @@ class TaskManager {
 	 */
 	private updateTaskStatus(id: string, status: GenerationTask['status']) {
 		this.tasks = this.tasks.map((t) => (t.id === id ? { ...t, status } : t));
+		this.scheduleSave();
 	}
 
 	/**
@@ -208,6 +242,7 @@ class TaskManager {
 				? { ...t, status: 'success' as const, mediaResources, completedAt: Date.now() }
 				: t
 		);
+		this.scheduleSave();
 		// 任务成功后刷新用户信息和积分余额
 		Promise.all([
 			refreshCurrentUser().catch((err) => {
@@ -226,6 +261,7 @@ class TaskManager {
 		this.tasks = this.tasks.map((t) =>
 			t.id === id ? { ...t, status: 'error' as const, error, completedAt: Date.now() } : t
 		);
+		this.scheduleSave();
 	}
 
 	/**
@@ -233,6 +269,7 @@ class TaskManager {
 	 */
 	deleteTask(id: string) {
 		this.tasks = this.tasks.filter((t) => t.id !== id);
+		this.scheduleSave();
 	}
 
 	/**
@@ -240,6 +277,13 @@ class TaskManager {
 	 */
 	clearCompleted() {
 		this.tasks = this.tasks.filter((t) => t.status === 'pending' || t.status === 'loading');
+		if (this.tasks.length === 0) {
+			clearImageGenHistory().catch((err) =>
+				console.warn('Failed to clear image-gen history:', err)
+			);
+		} else {
+			this.scheduleSave();
+		}
 	}
 
 	/**
