@@ -8,6 +8,7 @@
     import { highlightCodeBlocks, injectCopyButtons } from "$lib/utils/markdown";
     import { generateUUID } from "$lib/utils/uuid";
     import { CREDITS, CHAT_ATTACHMENTS, UI } from "$lib/config/constants";
+    import { compressImage } from "$lib/utils/image-compress";
     import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
     import { Button } from "$lib/components/ui/button";
     import { ImageIcon, History, SquarePen, Trash2, MessageSquare, WifiOff, AlertCircle } from "lucide-svelte";
@@ -264,13 +265,10 @@
         if (!CHAT_ATTACHMENTS.ALLOWED_TYPES.includes(file.type)) {
             return `不支持的文件类型: ${file.type || '未知'}`;
         }
-        if (file.size > CHAT_ATTACHMENTS.MAX_FILE_SIZE) {
-            return `文件过大（上限 ${CHAT_ATTACHMENTS.MAX_SIZE_LABEL}）`;
-        }
         return null;
     }
 
-    function addFiles(files: FileList | File[]) {
+    async function addFiles(files: FileList | File[]) {
         for (const file of Array.from(files)) {
             if (pendingFiles.length >= CHAT_ATTACHMENTS.MAX_FILES) {
                 toast.error(`最多同时上传 ${CHAT_ATTACHMENTS.MAX_FILES} 张图片`);
@@ -278,7 +276,19 @@
             }
             const error = validateFile(file);
             if (error) { toast.error(error); continue; }
-            pendingFiles = [...pendingFiles, { id: generateUUID(), file, previewUrl: URL.createObjectURL(file) }];
+
+            // 自动压缩超限图片
+            let processedFile = file;
+            if (file.size > CHAT_ATTACHMENTS.MAX_FILE_SIZE) {
+                try {
+                    processedFile = await compressImage(file);
+                } catch (e) {
+                    toast.error(e instanceof Error ? e.message : `文件过大: ${file.name}`);
+                    continue;
+                }
+            }
+
+            pendingFiles = [...pendingFiles, { id: generateUUID(), file: processedFile, previewUrl: URL.createObjectURL(processedFile) }];
         }
     }
 

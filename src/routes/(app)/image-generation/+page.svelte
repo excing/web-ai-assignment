@@ -20,6 +20,7 @@
 	import { taskManager, type MediaResource } from '$lib/stores/task-manager.svelte';
 	import ImageGallery from '$lib/components/image-gallery.svelte';
 	import { CHAT_ATTACHMENTS, UI } from '$lib/config/constants';
+	import { compressImage } from '$lib/utils/image-compress';
 	import { cn } from '$lib/utils';
 
 	let input = $state('');
@@ -76,7 +77,7 @@
 		}
 	}
 
-	function addFiles(files: File[]) {
+	async function addFiles(files: File[]) {
 		for (const file of files) {
 			// 检查数量上限
 			if (attachedFiles.length >= CHAT_ATTACHMENTS.MAX_FILES) {
@@ -90,22 +91,27 @@
 				continue;
 			}
 
-			// 验证文件大小
+			// 自动压缩超限图片
+			let processedFile = file;
 			if (file.size > CHAT_ATTACHMENTS.MAX_FILE_SIZE) {
-				toast.error(`文件过大: ${file.name}（上限 ${CHAT_ATTACHMENTS.MAX_SIZE_LABEL}）`);
-				continue;
+				try {
+					processedFile = await compressImage(file);
+				} catch (e) {
+					toast.error(e instanceof Error ? e.message : `文件过大: ${file.name}`);
+					continue;
+				}
 			}
 
-			// 检查是否已添加（按名称+大小去重）
-			if (attachedFiles.some((f) => f.file.name === file.name && f.file.size === file.size)) {
-				toast.error(`文件已添加: ${file.name}`);
+			// 检查是否已添加（按名称去重）
+			if (attachedFiles.some((f) => f.file.name === processedFile.name)) {
+				toast.error(`文件已添加: ${processedFile.name}`);
 				continue;
 			}
 
 			// 添加文件
 			const id = `file-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-			const previewUrl = URL.createObjectURL(file);
-			attachedFiles = [...attachedFiles, { id, file, previewUrl }];
+			const previewUrl = URL.createObjectURL(processedFile);
+			attachedFiles = [...attachedFiles, { id, file: processedFile, previewUrl }];
 		}
 	}
 
