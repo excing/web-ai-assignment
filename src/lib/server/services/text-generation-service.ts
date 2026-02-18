@@ -1,18 +1,6 @@
-import {
-	generateText,
-	convertToModelMessages,
-	extractReasoningMiddleware,
-	wrapLanguageModel
-} from 'ai';
+import { convertToModelMessages } from 'ai';
 import type { UIMessage } from 'ai';
-import {
-	getProxyForFeatureWithFallback,
-	createModelFromProxy,
-	reportAssignmentSuccess,
-	reportAssignmentFailure,
-	type ProxyConfig
-} from '$lib/server/ai-proxy';
-import { BillingService } from '$lib/server/credits/billing-service';
+import { BaseAIService } from './base-ai-service';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('text-generation-service');
@@ -84,16 +72,20 @@ export interface TextGenerationResponse {
  * 负责处理非流式 AI 文本生成的核心业务逻辑，可在多个场景复用
  */
 export class TextGenerationService {
-	private proxyConfig: ProxyConfig | null = null;
+	private base: BaseAIService;
+	private maxOutputTokens: number;
+	private temperature?: number;
+	private topP?: number;
 
-	constructor(private options: TextGenerationServiceOptions = {}) {}
-
-	/**
-	 * 初始化服务：获取 Proxy 配置
-	 */
-	async initialize(): Promise<void> {
-		const feature = this.options.feature || 'text-generation';
-		this.proxyConfig = await getProxyForFeatureWithFallback(feature);
+	constructor(private options: TextGenerationServiceOptions = {}) {
+		this.base = new BaseAIService({
+			feature: options.feature || 'text-generation',
+			userId: options.userId,
+			reasoningTagName: options.reasoningTagName,
+		});
+		this.maxOutputTokens = options.maxOutputTokens ?? 4096;
+		this.temperature = options.temperature;
+		this.topP = options.topP;
 	}
 
 	/**
@@ -195,7 +187,6 @@ export class TextGenerationService {
 		const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+\.(jpg|jpeg|png|gif|webp|mp4|webm|mp3|wav|pdf|doc|docx)/gi;
 		const urls = text.match(urlRegex);
 		if (urls) {
-			// 并行下载所有 URL
 			const downloadPromises = urls.map(async (url) => {
 				const result = await this.downloadAndConvertToBase64(url);
 				if (result) {
@@ -218,7 +209,7 @@ export class TextGenerationService {
 		const base64Regex = /data:(image|video|audio)\/([a-zA-Z0-9+.-]+);base64,([A-Za-z0-9+/=]+)/g;
 		let match;
 		while ((match = base64Regex.exec(text)) !== null) {
-			const [fullMatch, mediaType, format, base64Data] = match;
+			const [fullMatch, mediaType, format] = match;
 			resources.push({
 				type: mediaType as 'image' | 'video' | 'audio',
 				data: fullMatch,
@@ -238,7 +229,6 @@ export class TextGenerationService {
 		}
 
 		if (markdownUrls.length > 0) {
-			// 并行下载所有 Markdown 图片
 			const downloadPromises = markdownUrls.map(async ({ alt, url }) => {
 				const result = await this.downloadAndConvertToBase64(url);
 				if (result) {
@@ -263,7 +253,6 @@ export class TextGenerationService {
 		while ((match = htmlMediaRegex.exec(text)) !== null) {
 			const [fullMatch, tag, url] = match;
 			if (url && !url.startsWith('data:')) {
-				// 尝试提取 alt 或 title 属性
 				const altMatch = fullMatch.match(/(?:alt|title)=["']([^"']+)["']/i);
 				htmlMediaUrls.push({
 					tag: tag.toLowerCase(),
@@ -274,11 +263,9 @@ export class TextGenerationService {
 		}
 
 		if (htmlMediaUrls.length > 0) {
-			// 并行下载所有 HTML 媒体资源
 			const downloadPromises = htmlMediaUrls.map(async ({ tag, url, alt }) => {
 				const result = await this.downloadAndConvertToBase64(url);
 				if (result) {
-					// 根据标签类型判断媒体类型
 					let type: MediaResource['type'] = 'file';
 					if (tag === 'img') type = 'image';
 					else if (tag === 'video' || tag === 'source') type = 'video';
@@ -328,111 +315,43 @@ export class TextGenerationService {
 	}
 
 	/**
-	 * 创建并配置 AI 模型
-	 */
-	private createModel() {
-		if (!this.proxyConfig) {
-			throw new Error('TextGenerationService 未初始化，请先调用 initialize()');
-		}
-
-		const rawModel = createModelFromProxy(this.proxyConfig);
-
-		// 包装模型，提取推理内容
-		return wrapLanguageModel({
-			model: rawModel,
-			middleware: extractReasoningMiddleware({
-				tagName: this.options.reasoningTagName || 'think'
-			})
-		});
-	}
-
-	/**
 	 * 执行非流式文本生成
-	 * @param modelMessages 已转换的模型消息
-	 * @returns 文本生成响应
 	 */
 	async generateText(
 		modelMessages: Awaited<ReturnType<typeof convertToModelMessages>>
 	): Promise<TextGenerationResponse> {
-		if (!this.proxyConfig) {
-			throw new Error('TextGenerationService 未初始化，请先调用 initialize()');
-		}
+		const result = await this.base.executeGenerate({
+			messages: modelMessages,
+			maxOutputTokens: this.maxOutputTokens,
+			temperature: this.temperature,
+			topP: this.topP,
+			billingDescription: '图像生成',
+		});
 
-		const model = this.createModel();
-		const {
-			maxOutputTokens = 4096,
-			temperature,
-			topP
-		} = this.options;
-
-		// 计费预检
-		const billingService = this.options.userId
-			? new BillingService(this.options.userId)
-			: null;
-		if (billingService) {
-			await billingService.autoPreCheck(this.proxyConfig, {
-				maxOutputTokens,
-				description: '图像生成',
-			});
-		}
-
-		try {
-			const result = await generateText({
-				model,
-				messages: modelMessages,
-				maxOutputTokens,
-				temperature,
-				topP
-			});
-
-			// 记录 Assignment 请求成功
-			await reportAssignmentSuccess(this.proxyConfig.assignmentId);
-
-			// 计费扣款
-			if (billingService) {
-				await billingService.autoCharge(this.proxyConfig, {
-					usage: {
-						promptTokens: result.usage.inputTokens || 0,
-						completionTokens: result.usage.outputTokens || 0,
-					},
-					description: `图像生成扣费 - 输入${result.usage.inputTokens || 0}tokens/输出${result.usage.outputTokens || 0}tokens`,
-				});
-			}
-
-			// 构造响应
-			return {
-				text: result.text,
-				finishReason: result.finishReason,
-				usage: {
-					promptTokens: result.usage.inputTokens || 0,
-					completionTokens: result.usage.outputTokens || 0,
-					totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
-				},
-				reasoning: result.reasoningText,
-				mediaResources: await this.extractMediaResources(
-					result.text,
-					result.files || [],
-					result.content || []
-				)
-			};
-		} catch (error) {
-			// generateText 失败（如网络不可达、API Key 无效等）
-			const errorMsg = error instanceof Error ? error.message : String(error);
-			log.error('AI 请求失败', error instanceof Error ? error : new Error(String(error)));
-			await reportAssignmentFailure(this.proxyConfig.assignmentId, errorMsg);
-			throw error;
-		}
+		return {
+			text: result.text,
+			finishReason: result.finishReason,
+			usage: {
+				promptTokens: result.usage.inputTokens || 0,
+				completionTokens: result.usage.outputTokens || 0,
+				totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
+			},
+			reasoning: result.reasoningText,
+			mediaResources: await this.extractMediaResources(
+				result.text,
+				result.files || [],
+				result.content || []
+			)
+		};
 	}
 
 	/**
 	 * 便捷方法：处理完整的文本生成请求
-	 * @param request 文本生成请求
-	 * @returns 文本生成响应
 	 */
 	async handleTextGenerationRequest(
 		request: TextGenerationRequest
 	): Promise<TextGenerationResponse> {
-		await this.initialize();
+		await this.base.initialize();
 		const modelMessages = await this.convertMessages(request.messages);
 		return await this.generateText(modelMessages);
 	}
