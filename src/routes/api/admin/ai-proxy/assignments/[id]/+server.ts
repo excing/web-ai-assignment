@@ -15,7 +15,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 
     try {
         const body = await request.json();
-        const { name, description, featureKey, proxyId, models, defaultModel, isActive } = body;
+        const { name, description, featureKey, proxyId, defaultModel, isActive } = body;
 
         if (!name || !featureKey || !proxyId) {
             return errorResponse(new ValidationError('请填写名称、功能标识和 Proxy'));
@@ -28,7 +28,6 @@ export const PUT: RequestHandler = async ({ params, request }) => {
                 description: description || null,
                 featureKey,
                 proxyId,
-                models: Array.isArray(models) && models.length > 0 ? models : null,
                 defaultModel: defaultModel || null,
                 isActive: Boolean(isActive),
                 updatedAt: new Date()

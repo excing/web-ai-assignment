@@ -6,6 +6,7 @@ import { toast } from 'svelte-sonner';
 import { PaginatedState } from '../pagination.svelte';
 import { aiProxyProxiesStore } from './proxies.svelte';
 import type { AiProxyAssignment, AssignmentFormData } from '$lib/types/admin';
+import { HEALTH_STATUS } from '$lib/config/constants';
 
 class AiProxyAssignmentsStore {
 	// Assignment 分页状态
@@ -22,21 +23,12 @@ class AiProxyAssignmentsStore {
 		description: '',
 		featureKey: '',
 		proxyId: '',
-		models: '',
 		defaultModel: '',
 		isActive: true
 	});
 	savingAssignment = $state(false);
 
 	// ============ 辅助方法 ============
-
-	private parseModelList(input: string): string[] {
-		if (!input.trim()) return [];
-		return input
-			.split(',')
-			.map((s) => s.trim())
-			.filter(Boolean);
-	}
 
 	patchAssignmentItem(id: string, patch: Partial<AiProxyAssignment>) {
 		this.assignments.items = this.assignments.items.map((a) =>
@@ -65,11 +57,11 @@ class AiProxyAssignmentsStore {
 	}
 
 	/**
-	 * 更新 assignments 中特定 proxy 的健康状态
+	 * 更新特定 assignment 的健康状态
 	 */
-	patchAssignmentHealthStatus(proxyId: string, status: string) {
+	patchAssignmentHealthStatus(assignmentId: string, patch: Partial<Pick<AiProxyAssignment, 'healthStatus' | 'unhealthyCount' | 'lastError' | 'lastErrorAt'>>) {
 		this.assignments.items = this.assignments.items.map((a) =>
-			a.proxyId === proxyId ? { ...a, proxyHealthStatus: status } : a
+			a.id === assignmentId ? { ...a, ...patch } : a
 		);
 	}
 
@@ -114,7 +106,6 @@ class AiProxyAssignmentsStore {
 					description: this.assignmentForm.description || null,
 					featureKey: this.assignmentForm.featureKey,
 					proxyId: this.assignmentForm.proxyId,
-					models: this.parseModelList(this.assignmentForm.models),
 					defaultModel: this.assignmentForm.defaultModel || null,
 					isActive: this.assignmentForm.isActive
 				})
@@ -156,7 +147,6 @@ class AiProxyAssignmentsStore {
 					description: this.assignmentForm.description || null,
 					featureKey: this.assignmentForm.featureKey,
 					proxyId: this.assignmentForm.proxyId,
-					models: this.parseModelList(this.assignmentForm.models),
 					defaultModel: this.assignmentForm.defaultModel || null,
 					isActive: this.assignmentForm.isActive
 				})
@@ -171,14 +161,12 @@ class AiProxyAssignmentsStore {
 					description: updated.description,
 					featureKey: updated.featureKey,
 					proxyId: updated.proxyId,
-					models: updated.models,
 					defaultModel: updated.defaultModel,
 					isActive: updated.isActive,
 					updatedAt: updated.updatedAt,
 					...(proxy ? {
 						proxyName: proxy.name,
 						proxyProvider: proxy.provider,
-						proxyHealthStatus: proxy.healthStatus,
 					} : {})
 				});
 				toast.success('绑定更新成功');
@@ -250,6 +238,55 @@ class AiProxyAssignmentsStore {
 		}
 	}
 
+	// ============ 健康状态管理 ============
+
+	async resetHealth(assignmentId: string) {
+		aiProxyProxiesStore.startOperation(assignmentId);
+		const oldAssignment = this.assignments.items.find((a) => a.id === assignmentId);
+		if (oldAssignment) {
+			this.patchAssignmentHealthStatus(assignmentId, {
+				healthStatus: HEALTH_STATUS.HEALTHY,
+				unhealthyCount: 0,
+				lastError: null,
+				lastErrorAt: null
+			});
+		}
+		try {
+			const res = await fetch(`/api/admin/ai-proxy/assignments/${assignmentId}/reset-health`, { method: 'POST' });
+
+			if (res.ok) {
+				toast.success('健康状态已重置');
+				return true;
+			} else {
+				if (oldAssignment) {
+					this.patchAssignmentHealthStatus(assignmentId, {
+						healthStatus: oldAssignment.healthStatus,
+						unhealthyCount: oldAssignment.unhealthyCount,
+						lastError: oldAssignment.lastError,
+						lastErrorAt: oldAssignment.lastErrorAt
+					});
+				}
+				const data = await res.json();
+				toast.error(data.error || '重置失败');
+				return false;
+			}
+		} catch (error) {
+			if (oldAssignment) {
+				this.patchAssignmentHealthStatus(assignmentId, {
+					healthStatus: oldAssignment.healthStatus,
+					unhealthyCount: oldAssignment.unhealthyCount,
+					lastError: oldAssignment.lastError,
+					lastErrorAt: oldAssignment.lastErrorAt
+				});
+			}
+			console.error('重置健康状态失败:', error);
+			toast.error('重置失败，请重试');
+			return false;
+		} finally {
+			aiProxyProxiesStore.endOperation(assignmentId);
+		}
+	}
+
 	openEditAssignmentDialog(assignment: AiProxyAssignment) {
 		this.assignmentForm = {
 			id: assignment.id,
@@ -257,7 +294,6 @@ class AiProxyAssignmentsStore {
 			description: assignment.description || '',
 			featureKey: assignment.featureKey,
 			proxyId: assignment.proxyId,
-			models: assignment.models?.join(', ') || '',
 			defaultModel: assignment.defaultModel || '',
 			isActive: assignment.isActive
 		};
@@ -271,7 +307,6 @@ class AiProxyAssignmentsStore {
 			description: '',
 			featureKey: '',
 			proxyId: '',
-			models: '',
 			defaultModel: '',
 			isActive: true
 		};

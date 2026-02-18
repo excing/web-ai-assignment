@@ -8,7 +8,7 @@ import { fetchModelList, testModelChat } from './model-testing';
 import { aiProxyAssignmentsStore } from './assignments.svelte';
 import { aiProxyKeyManagementStore } from './key-management.svelte';
 import type { AiProxyItem, ProxyFormData } from '$lib/types/admin';
-import { AI_PROVIDER, HEALTH_STATUS } from '$lib/config/constants';
+import { AI_PROVIDER } from '$lib/config/constants';
 
 class AiProxyProxiesStore {
 	// Proxy 分页状态
@@ -238,56 +238,6 @@ class AiProxyProxiesStore {
 			this.proxies.total++;
 			console.error('删除 Proxy 失败:', error);
 			toast.error('删除失败，请重试');
-			return false;
-		} finally {
-			this.endOperation(proxyId);
-		}
-	}
-
-	async resetHealth(proxyId: string) {
-		this.startOperation(proxyId);
-		const oldProxy = this.proxies.items.find((p) => p.id === proxyId);
-		if (oldProxy) {
-			this.patchProxyItem(proxyId, {
-				healthStatus: HEALTH_STATUS.HEALTHY,
-				unhealthyCount: 0,
-				lastError: null,
-				lastErrorAt: null
-			});
-			aiProxyAssignmentsStore.patchAssignmentHealthStatus(proxyId, HEALTH_STATUS.HEALTHY);
-		}
-		try {
-			const res = await fetch(`/api/admin/ai-proxy/${proxyId}/reset-health`, { method: 'POST' });
-
-			if (res.ok) {
-				toast.success('健康状态已重置');
-				return true;
-			} else {
-				if (oldProxy) {
-					this.patchProxyItem(proxyId, {
-						healthStatus: oldProxy.healthStatus,
-						unhealthyCount: oldProxy.unhealthyCount,
-						lastError: oldProxy.lastError,
-						lastErrorAt: oldProxy.lastErrorAt
-					});
-					aiProxyAssignmentsStore.patchAssignmentHealthStatus(proxyId, oldProxy.healthStatus);
-				}
-				const data = await res.json();
-				toast.error(data.error || '重置失败');
-				return false;
-			}
-		} catch (error) {
-			if (oldProxy) {
-				this.patchProxyItem(proxyId, {
-					healthStatus: oldProxy.healthStatus,
-					unhealthyCount: oldProxy.unhealthyCount,
-					lastError: oldProxy.lastError,
-					lastErrorAt: oldProxy.lastErrorAt
-				});
-				aiProxyAssignmentsStore.patchAssignmentHealthStatus(proxyId, oldProxy.healthStatus);
-			}
-			console.error('重置健康状态失败:', error);
-			toast.error('重置失败，请重试');
 			return false;
 		} finally {
 			this.endOperation(proxyId);

@@ -72,7 +72,7 @@ export async function getProxyForFeature(featureKey: string): Promise<ProxyConfi
     // 检查缓存
     const cached = proxyCache.get(featureKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-        return selectHealthyProxy(cached.configs);
+        return selectHealthyAssignment(cached.configs);
     }
 
     // 查询数据库
@@ -80,16 +80,14 @@ export async function getProxyForFeature(featureKey: string): Promise<ProxyConfi
         .select({
             assignmentId: aiProxyAssignment.id,
             featureKey: aiProxyAssignment.featureKey,
-            assignmentModels: aiProxyAssignment.models,
             defaultModel: aiProxyAssignment.defaultModel,
+            healthStatus: aiProxyAssignment.healthStatus,
             proxyId: aiProxy.id,
             proxyName: aiProxy.name,
             provider: aiProxy.provider,
             baseUrl: aiProxy.baseUrl,
             apiKey: aiProxy.apiKey,
-            proxyModels: aiProxy.models,
             priority: aiProxy.priority,
-            healthStatus: aiProxy.healthStatus,
         })
         .from(aiProxyAssignment)
         .innerJoin(aiProxy, eq(aiProxyAssignment.proxyId, aiProxy.id))
@@ -125,13 +123,13 @@ export async function getProxyForFeature(featureKey: string): Promise<ProxyConfi
     // 写入缓存
     proxyCache.set(featureKey, { configs, timestamp: Date.now() });
 
-    return selectHealthyProxy(configs);
+    return selectHealthyAssignment(configs);
 }
 
 /**
- * 从配置列表中选择健康的 Proxy
+ * 从配置列表中选择健康的 Assignment
  */
-function selectHealthyProxy(configs: ProxyConfig[]): ProxyConfig | null {
+function selectHealthyAssignment(configs: ProxyConfig[]): ProxyConfig | null {
     if (configs.length === 0) return null;
 
     const healthy = configs.filter(c => (c as InternalProxyConfig)._healthStatus !== 'unhealthy');
@@ -203,20 +201,20 @@ export function createModelFromProxy(config: ProxyConfig): LanguageModelV3 {
 }
 
 // ============================================================================
-// 被动健康检查
+// 被动健康检查（基于 Assignment）
 // ============================================================================
 
 const UNHEALTHY_THRESHOLD = 3;
 
 /**
- * 记录 Proxy 请求成功
+ * 记录 Assignment 请求成功
  */
-export async function reportProxySuccess(proxyId: string): Promise<void> {
-    if (proxyId === '__env_fallback__') return;
+export async function reportAssignmentSuccess(assignmentId: string): Promise<void> {
+    if (assignmentId === '__env_fallback__') return;
 
     try {
         await db
-            .update(aiProxy)
+            .update(aiProxyAssignment)
             .set({
                 healthStatus: HEALTH_STATUS.HEALTHY,
                 unhealthyCount: 0,
@@ -224,46 +222,46 @@ export async function reportProxySuccess(proxyId: string): Promise<void> {
                 lastErrorAt: null,
                 updatedAt: new Date()
             })
-            .where(eq(aiProxy.id, proxyId));
+            .where(eq(aiProxyAssignment.id, assignmentId));
     } catch (error) {
-        log.error('更新 Proxy 健康状态失败', error instanceof Error ? error : new Error(String(error)), { proxyId });
+        log.error('更新 Assignment 健康状态失败', error instanceof Error ? error : new Error(String(error)), { assignmentId });
     }
 }
 
 /**
- * 记录 Proxy 请求失败
+ * 记录 Assignment 请求失败
  */
-export async function reportProxyFailure(proxyId: string, errorMessage: string): Promise<void> {
-    if (proxyId === '__env_fallback__') return;
+export async function reportAssignmentFailure(assignmentId: string, errorMessage: string): Promise<void> {
+    if (assignmentId === '__env_fallback__') return;
 
     try {
         const [updated] = await db
-            .update(aiProxy)
+            .update(aiProxyAssignment)
             .set({
-                unhealthyCount: sql`${aiProxy.unhealthyCount} + 1`,
-                healthStatus: sql`CASE WHEN ${aiProxy.unhealthyCount} + 1 >= ${UNHEALTHY_THRESHOLD} THEN ${HEALTH_STATUS.UNHEALTHY} ELSE ${HEALTH_STATUS.HEALTHY} END`,
+                unhealthyCount: sql`${aiProxyAssignment.unhealthyCount} + 1`,
+                healthStatus: sql`CASE WHEN ${aiProxyAssignment.unhealthyCount} + 1 >= ${UNHEALTHY_THRESHOLD} THEN ${HEALTH_STATUS.UNHEALTHY} ELSE ${HEALTH_STATUS.HEALTHY} END`,
                 lastError: errorMessage.slice(0, 500),
                 lastErrorAt: new Date(),
                 updatedAt: new Date()
             })
-            .where(eq(aiProxy.id, proxyId))
-            .returning({ unhealthyCount: aiProxy.unhealthyCount });
+            .where(eq(aiProxyAssignment.id, assignmentId))
+            .returning({ unhealthyCount: aiProxyAssignment.unhealthyCount });
 
         if (updated && updated.unhealthyCount >= UNHEALTHY_THRESHOLD) {
-            log.warn('Proxy 已标记为 unhealthy', { proxyId, unhealthyCount: updated.unhealthyCount });
+            log.warn('Assignment 已标记为 unhealthy', { assignmentId, unhealthyCount: updated.unhealthyCount });
             proxyCache.clear();
         }
     } catch (error) {
-        log.error('更新 Proxy 失败状态失败', error instanceof Error ? error : new Error(String(error)), { proxyId });
+        log.error('更新 Assignment 失败状态失败', error instanceof Error ? error : new Error(String(error)), { assignmentId });
     }
 }
 
 /**
- * 重置 Proxy 健康状态（Admin 手动恢复）
+ * 重置 Assignment 健康状态（Admin 手动恢复）
  */
-export async function resetProxyHealth(proxyId: string): Promise<void> {
+export async function resetAssignmentHealth(assignmentId: string): Promise<void> {
     await db
-        .update(aiProxy)
+        .update(aiProxyAssignment)
         .set({
             healthStatus: HEALTH_STATUS.HEALTHY,
             unhealthyCount: 0,
@@ -271,7 +269,7 @@ export async function resetProxyHealth(proxyId: string): Promise<void> {
             lastErrorAt: null,
             updatedAt: new Date()
         })
-        .where(eq(aiProxy.id, proxyId));
+        .where(eq(aiProxyAssignment.id, assignmentId));
 
     proxyCache.clear();
 }

@@ -21,27 +21,6 @@
 		return map[p] || p;
 	}
 
-	function parseModels(input: string): string[] {
-		if (!input.trim()) return [];
-		return input
-			.split(',')
-			.map((s) => s.trim())
-			.filter(Boolean);
-	}
-
-	function isModelSelected(model: string): boolean {
-		return parseModels(aiProxyAssignmentsStore.assignmentForm.models).includes(model);
-	}
-
-	function toggleModel(model: string) {
-		const current = parseModels(aiProxyAssignmentsStore.assignmentForm.models);
-		if (current.includes(model)) {
-			aiProxyAssignmentsStore.assignmentForm.models = current.filter((m) => m !== model).join(', ');
-		} else {
-			aiProxyAssignmentsStore.assignmentForm.models = [...current, model].join(', ');
-		}
-	}
-
 	function setAsDefaultModel(model: string) {
 		aiProxyAssignmentsStore.assignmentForm.defaultModel = model;
 	}
@@ -121,44 +100,25 @@
 					placeholder="gpt-4o"
 					bind:value={aiProxyAssignmentsStore.assignmentForm.defaultModel}
 				/>
-			</div>
-			<div class="grid gap-2">
-				<Label for="asgn-models">可用模型范围（逗号分隔，留空表示全部）</Label>
-				<Input
-					id="asgn-models"
-					placeholder="gpt-4o, gpt-4o-mini"
-					bind:value={aiProxyAssignmentsStore.assignmentForm.models}
-				/>
 				{#if aiProxyAssignmentsStore.assignmentForm.proxyId}
 					{@const proxyModels = getSelectedProxyModels()}
 					{#if proxyModels.length > 0}
 						<div class="rounded-md border p-2">
 							<div class="flex items-center justify-between mb-2">
 								<span class="text-xs font-medium text-muted-foreground">
-									Proxy 已配置的模型
+									Proxy 已配置的模型（点击设为默认）
 								</span>
 							</div>
 							<div class="flex flex-wrap gap-1.5">
 								{#each proxyModels as model}
-									<div class="inline-flex items-center gap-1">
-										<Button
-											variant={isModelSelected(model) ? 'default' : 'secondary'}
-											size="sm"
-											class="h-auto px-2 py-0.5 text-xs"
-											onclick={() => toggleModel(model)}
-										>
-											{model}
-										</Button>
-										<Button
-											variant="ghost"
-											size="icon"
-											class="h-4 w-4 text-muted-foreground hover:text-primary"
-											title="设为默认模型"
-											onclick={() => setAsDefaultModel(model)}
-										>
-											{aiProxyAssignmentsStore.assignmentForm.defaultModel === model ? '★' : '☆'}
-										</Button>
-									</div>
+									<Button
+										variant={aiProxyAssignmentsStore.assignmentForm.defaultModel === model ? 'default' : 'secondary'}
+										size="sm"
+										class="h-auto px-2 py-0.5 text-xs"
+										onclick={() => setAsDefaultModel(model)}
+									>
+										{model}
+									</Button>
 								{/each}
 							</div>
 						</div>

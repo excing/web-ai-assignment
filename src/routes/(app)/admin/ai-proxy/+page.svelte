@@ -201,7 +201,6 @@
 										<Table.Head>API Key</Table.Head>
 										<Table.Head>模型数</Table.Head>
 										<Table.Head>优先级</Table.Head>
-										<Table.Head>健康状态</Table.Head>
 										<Table.Head>状态</Table.Head>
 										<Table.Head class="text-right">操作</Table.Head>
 									</Table.Row>
@@ -262,28 +261,6 @@
 												<Badge variant="secondary">{proxy.models.length}</Badge>
 											</Table.Cell>
 											<Table.Cell>{proxy.priority}</Table.Cell>
-											<Table.Cell>
-												<div class="flex items-center gap-1.5">
-													<Badge variant={healthVariant(proxy.healthStatus)}>
-														{proxy.healthStatus === 'healthy' ? '健康' : '异常'}
-													</Badge>
-													{#if proxy.healthStatus === 'unhealthy'}
-														<button
-															onclick={() => aiProxyProxiesStore.resetHealth(proxy.id)}
-															disabled={operating}
-															class="text-muted-foreground hover:text-foreground"
-															title="重置健康状态"
-														>
-															<RefreshCw class="h-3.5 w-3.5" />
-														</button>
-													{/if}
-												</div>
-												{#if proxy.lastError}
-													<p class="mt-1 max-w-[200px] truncate text-xs text-destructive" title={proxy.lastError}>
-														{proxy.lastError}
-													</p>
-												{/if}
-											</Table.Cell>
 											<Table.Cell>
 												<Badge variant={proxy.isActive ? 'default' : 'secondary'}>
 													{proxy.isActive ? '启用' : '停用'}
@@ -349,8 +326,7 @@
 										<Table.Head>功能标识</Table.Head>
 										<Table.Head>Proxy</Table.Head>
 										<Table.Head>默认模型</Table.Head>
-										<Table.Head>可用模型</Table.Head>
-										<Table.Head>Proxy 状态</Table.Head>
+										<Table.Head>健康状态</Table.Head>
 										<Table.Head>状态</Table.Head>
 										<Table.Head class="text-right">操作</Table.Head>
 									</Table.Row>
@@ -384,16 +360,26 @@
 												{/if}
 											</Table.Cell>
 											<Table.Cell class="max-w-[150px]">
-												{#if assignment.models && assignment.models.length > 0}
-													<span class="text-xs text-muted-foreground">{assignment.models.length}</span>
-												{:else}
-													<span class="text-xs text-muted-foreground">全部</span>
+												<div class="flex items-center gap-1.5">
+													<Badge variant={healthVariant(assignment.healthStatus)}>
+														{assignment.healthStatus === 'healthy' ? '健康' : '异常'}
+													</Badge>
+													{#if assignment.healthStatus === 'unhealthy'}
+														<button
+															onclick={() => aiProxyAssignmentsStore.resetHealth(assignment.id)}
+															disabled={operating}
+															class="text-muted-foreground hover:text-foreground"
+															title="重置健康状态"
+														>
+															<RefreshCw class="h-3.5 w-3.5" />
+														</button>
+													{/if}
+												</div>
+												{#if assignment.lastError}
+													<p class="mt-1 max-w-[200px] truncate text-xs text-destructive" title={assignment.lastError}>
+														{assignment.lastError}
+													</p>
 												{/if}
-											</Table.Cell>
-											<Table.Cell>
-												<Badge variant={healthVariant(assignment.proxyHealthStatus)}>
-													{assignment.proxyHealthStatus === 'healthy' ? '健康' : '异常'}
-												</Badge>
 											</Table.Cell>
 											<Table.Cell>
 												<Badge variant={assignment.isActive ? 'default' : 'secondary'}>
@@ -446,7 +432,7 @@
 					<ul class="text-muted-foreground space-y-1">
 						<li>添加 AI 服务代理节点（OpenAI、Anthropic、Google）</li>
 						<li>设置优先级，数值越大越优先使用</li>
-						<li>连续 3 次请求失败自动标记为异常</li>
+						<li>配置支持的模型列表，用于功能绑定快捷选择</li>
 						<li>API Key 使用 AES-256 加密存储</li>
 					</ul>
 				</div>
@@ -454,8 +440,8 @@
 					<p class="font-medium mb-2">功能绑定</p>
 					<ul class="text-muted-foreground space-y-1">
 						<li>为功能（如 chat）绑定指定的 Proxy</li>
-						<li>可指定可用模型范围（留空表示全部）</li>
 						<li>设置默认模型，用于功能的默认调用</li>
+						<li>连续 3 次请求失败自动标记为异常</li>
 						<li>未配置绑定时自动回退到环境变量</li>
 					</ul>
 				</div>

@@ -8,8 +8,8 @@ import type { UIMessage } from 'ai';
 import {
 	getProxyForFeatureWithFallback,
 	createModelFromProxy,
-	reportProxySuccess,
-	reportProxyFailure,
+	reportAssignmentSuccess,
+	reportAssignmentFailure,
 	type ProxyConfig
 } from '$lib/server/ai-proxy';
 import { createLogger } from '$lib/server/logger';
@@ -377,8 +377,8 @@ export class TextGenerationService {
 				topP
 			});
 
-			// 记录 Proxy 请求成功
-			await reportProxySuccess(this.proxyConfig.proxyId);
+			// 记录 Assignment 请求成功
+			await reportAssignmentSuccess(this.proxyConfig.assignmentId);
 
 			// 计费回调
 			if (billingContext) {
@@ -406,7 +406,7 @@ export class TextGenerationService {
 			// generateText 失败（如网络不可达、API Key 无效等）
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			log.error('AI 请求失败', error instanceof Error ? error : new Error(String(error)));
-			await reportProxyFailure(this.proxyConfig.proxyId, errorMsg);
+			await reportAssignmentFailure(this.proxyConfig.assignmentId, errorMsg);
 			throw error;
 		}
 	}

@@ -8,10 +8,6 @@ export interface AiProxyItem {
 	models: string[];
 	isActive: boolean;
 	priority: number;
-	healthStatus: string;
-	unhealthyCount: number;
-	lastError: string | null;
-	lastErrorAt: string | null;
 	metadata: string | null;
 	createdAt: string;
 	updatedAt: string;
@@ -23,15 +19,17 @@ export interface AiProxyAssignment {
 	description: string | null;
 	featureKey: string;
 	proxyId: string;
-	models: string[] | null;
 	defaultModel: string | null;
 	isActive: boolean;
+	healthStatus: string;
+	unhealthyCount: number;
+	lastError: string | null;
+	lastErrorAt: string | null;
 	createdAt: string;
 	updatedAt: string;
 	// 关联信息
 	proxyName: string;
 	proxyProvider: string;
-	proxyHealthStatus: string;
 }
 
 export interface ProxyFormData {
@@ -51,7 +49,6 @@ export interface AssignmentFormData {
 	description: string;
 	featureKey: string;
 	proxyId: string;
-	models: string; // 逗号分隔的模型列表
 	defaultModel: string;
 	isActive: boolean;
 }

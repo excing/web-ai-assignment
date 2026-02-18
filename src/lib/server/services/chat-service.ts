@@ -8,8 +8,8 @@ import type { UIMessage } from 'ai';
 import {
 	getProxyForFeatureWithFallback,
 	createModelFromProxy,
-	reportProxySuccess,
-	reportProxyFailure,
+	reportAssignmentSuccess,
+	reportAssignmentFailure,
 	type ProxyConfig
 } from '$lib/server/ai-proxy';
 import { createLogger } from '$lib/server/logger';
@@ -103,8 +103,8 @@ export class ChatService {
 				messages: modelMessages,
 				maxOutputTokens,
 				onFinish: async ({ usage }) => {
-					// 记录 Proxy 请求成功
-					await reportProxySuccess(this.proxyConfig!.proxyId);
+					// 记录 Assignment 请求成功
+					await reportAssignmentSuccess(this.proxyConfig!.assignmentId);
 
 					// 计费回调
 					if (billingContext) {
@@ -113,10 +113,10 @@ export class ChatService {
 					}
 				},
 				onError: async ({ error }) => {
-					// 流式传输中途出错，报告 Proxy 失败
+					// 流式传输中途出错，报告 Assignment 失败
 					const errorMsg = error instanceof Error ? error.message : String(error);
 					log.error('AI 流式响应错误', undefined, { error: errorMsg });
-					await reportProxyFailure(this.proxyConfig!.proxyId, errorMsg);
+					await reportAssignmentFailure(this.proxyConfig!.assignmentId, errorMsg);
 				}
 			});
 
@@ -125,7 +125,7 @@ export class ChatService {
 			// streamText 初始化失败（如网络不可达、API Key 无效等）
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			log.error('AI 请求失败', error instanceof Error ? error : new Error(String(error)));
-			await reportProxyFailure(this.proxyConfig!.proxyId, errorMsg);
+			await reportAssignmentFailure(this.proxyConfig!.assignmentId, errorMsg);
 			throw error;
 		}
 	}

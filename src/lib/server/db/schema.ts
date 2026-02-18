@@ -135,11 +135,6 @@ export const aiProxy = pgTable('ai_proxy', {
     models: jsonb('models').$type<string[]>().notNull().default([]), // 支持的模型列表
     isActive: boolean('is_active').notNull().default(true),
     priority: integer('priority').notNull().default(0), // 优先级，数值越大越优先
-    // 被动健康检查
-    healthStatus: text('health_status').notNull().default('healthy'), // 'healthy' | 'unhealthy'
-    unhealthyCount: integer('unhealthy_count').notNull().default(0), // 连续失败次数
-    lastError: text('last_error'), // 最近一次错误信息
-    lastErrorAt: timestamp('last_error_at'), // 最近一次错误时间
     metadata: text('metadata'), // 扩展字段（JSON 字符串）
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow()
@@ -153,9 +148,13 @@ export const aiProxyAssignment = pgTable('ai_proxy_assignment', {
     featureKey: text('feature_key').notNull(), // 功能标识，如 'chat', 'image_generation'
     proxyId: text('proxy_id').notNull()
         .references(() => aiProxy.id, { onDelete: 'cascade' }),
-    models: jsonb('models').$type<string[]>(), // 可用模型范围（allowlist），null 表示该 Proxy 所有模型均可用
     defaultModel: text('default_model'), // 该功能的默认模型
     isActive: boolean('is_active').notNull().default(true),
+    // 被动健康检查
+    healthStatus: text('health_status').notNull().default('healthy'), // 'healthy' | 'unhealthy'
+    unhealthyCount: integer('unhealthy_count').notNull().default(0), // 连续失败次数
+    lastError: text('last_error'), // 最近一次错误信息
+    lastErrorAt: timestamp('last_error_at'), // 最近一次错误时间
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow()
 });

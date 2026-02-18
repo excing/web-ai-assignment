@@ -20,15 +20,17 @@ export const GET: RequestHandler = async ({ url }) => {
                 description: aiProxyAssignment.description,
                 featureKey: aiProxyAssignment.featureKey,
                 proxyId: aiProxyAssignment.proxyId,
-                models: aiProxyAssignment.models,
                 defaultModel: aiProxyAssignment.defaultModel,
                 isActive: aiProxyAssignment.isActive,
+                healthStatus: aiProxyAssignment.healthStatus,
+                unhealthyCount: aiProxyAssignment.unhealthyCount,
+                lastError: aiProxyAssignment.lastError,
+                lastErrorAt: aiProxyAssignment.lastErrorAt,
                 createdAt: aiProxyAssignment.createdAt,
                 updatedAt: aiProxyAssignment.updatedAt,
                 // 关联的 Proxy 信息
                 proxyName: aiProxy.name,
                 proxyProvider: aiProxy.provider,
-                proxyHealthStatus: aiProxy.healthStatus,
             })
             .from(aiProxyAssignment)
             .innerJoin(aiProxy, eq(aiProxyAssignment.proxyId, aiProxy.id));
@@ -58,7 +60,7 @@ export const GET: RequestHandler = async ({ url }) => {
 export const POST: RequestHandler = async ({ request }) => {
     try {
         const body = await request.json();
-        const { name, description, featureKey, proxyId, models, defaultModel, isActive } = body;
+        const { name, description, featureKey, proxyId, defaultModel, isActive } = body;
 
         if (!name || !featureKey || !proxyId) {
             return errorResponse(new ValidationError('请填写名称、功能标识和 Proxy'));
@@ -84,7 +86,6 @@ export const POST: RequestHandler = async ({ request }) => {
                 description: description || null,
                 featureKey,
                 proxyId,
-                models: Array.isArray(models) && models.length > 0 ? models : null,
                 defaultModel: defaultModel || null,
                 isActive: isActive !== undefined ? Boolean(isActive) : true,
             })
