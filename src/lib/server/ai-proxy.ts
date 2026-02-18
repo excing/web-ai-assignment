@@ -220,6 +220,8 @@ export async function reportProxySuccess(proxyId: string): Promise<void> {
             .set({
                 healthStatus: HEALTH_STATUS.HEALTHY,
                 unhealthyCount: 0,
+                lastError: '',
+                lastErrorAt: null,
                 updatedAt: new Date()
             })
             .where(eq(aiProxy.id, proxyId));
