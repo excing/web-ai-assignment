@@ -1,21 +1,16 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import * as Avatar from '$lib/components/ui/avatar';
-	import { Sparkles, X } from 'lucide-svelte';
+	import { Sparkles } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
-	import { type ApiTemplate, extractPlaceholders, formatImageCountHint } from './types';
+	import type { ApiTemplate } from './types';
 
 	interface Props {
 		templates: ApiTemplate[];
 		groupedTemplates: Record<string, ApiTemplate[]>;
 		loading: boolean;
 		selectedTemplate: ApiTemplate | null;
-		placeholderValues: Record<string, string>;
 		onSelectTemplate: (tpl: ApiTemplate) => void;
-		onDeselectTemplate: () => void;
-		onPlaceholderChange: (key: string, value: string) => void;
 	}
 
 	let {
@@ -23,15 +18,8 @@
 		groupedTemplates,
 		loading,
 		selectedTemplate,
-		placeholderValues,
 		onSelectTemplate,
-		onDeselectTemplate,
-		onPlaceholderChange,
 	}: Props = $props();
-
-	let placeholders = $derived(
-		selectedTemplate ? extractPlaceholders(selectedTemplate.prompt) : []
-	);
 </script>
 
 <div class="mx-auto max-w-2xl px-4 py-5 lg:max-w-3xl">
@@ -53,50 +41,6 @@
 			<p class="mt-3 text-sm text-muted-foreground">暂无模板，请直接输入描述</p>
 		</div>
 	{:else}
-		<!-- Placeholder inputs for selected template -->
-		{#if selectedTemplate && placeholders.length > 0}
-			<div
-				class="mb-4 rounded-2xl border border-primary/20 bg-primary/5 p-4"
-				style="animation: fadeSlideIn 0.2s ease both;"
-			>
-				<div class="mb-3 flex items-center justify-between">
-					<div class="flex items-center gap-2">
-						<Avatar.Root class="rounded-lg">
-							<Avatar.Image src={selectedTemplate.previewImageUrl} alt={selectedTemplate.name} />
-							<Avatar.Fallback class="rounded-lg">
-								<Sparkles class="h-4 w-4 text-muted-foreground" />
-							</Avatar.Fallback>
-						</Avatar.Root>
-						<span class="text-sm font-medium">{selectedTemplate.name}</span>
-					</div>
-					<Button variant="ghost" size="icon-sm" class="h-6 w-6 rounded-full" onclick={onDeselectTemplate}>
-						<X class="h-3.5 w-3.5" />
-					</Button>
-				</div>
-				{#if selectedTemplate.description}
-					<p class="mb-3 text-xs text-muted-foreground">{selectedTemplate.description}</p>
-				{/if}
-				<div class="space-y-2">
-					{#each placeholders as placeholder}
-						<div class="flex items-center gap-2">
-							<span class="w-20 flex-shrink-0 text-right text-xs text-muted-foreground/80">{placeholder}</span>
-							<Input
-								value={placeholderValues[placeholder] ?? ''}
-								oninput={(e) => onPlaceholderChange(placeholder, (e.target as HTMLInputElement).value)}
-								placeholder={`输入${placeholder}`}
-								class="h-8 text-sm"
-							/>
-						</div>
-					{/each}
-				</div>
-				{#if formatImageCountHint(selectedTemplate.imageCountMin, selectedTemplate.imageCountMax)}
-					<p class="mt-2 text-xs text-muted-foreground/60">
-						{formatImageCountHint(selectedTemplate.imageCountMin, selectedTemplate.imageCountMax)}
-					</p>
-				{/if}
-			</div>
-		{/if}
-
 		<!-- Template cards grouped by category -->
 		{#each Object.entries(groupedTemplates) as [category, categoryTemplates], ci}
 			<div class={ci > 0 ? 'mt-5' : ''}>

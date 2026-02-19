@@ -12,9 +12,11 @@
 		TemplateGrid,
 		HistoryList,
 		ImageGenInputBar,
+		TemplatePlaceholderBar,
 		type ApiTemplate,
 		extractPlaceholders,
 		resolvePrompt,
+		formatImageCountHint,
 	} from '$lib/components/image-gen';
 
 	// ── State ──
@@ -42,6 +44,19 @@
 	let activeTasks = $derived(tasks.filter((t) => t.status === 'pending' || t.status === 'loading'));
 	let completedTasks = $derived(tasks.filter((t) => t.status === 'success' || t.status === 'error'));
 	let hasActiveWork = $derived(activeTasks.length > 0);
+
+	// ── Template-derived ──
+	let placeholders = $derived(selectedTemplate ? extractPlaceholders(selectedTemplate.prompt) : []);
+	let hasPlaceholders = $derived(placeholders.length > 0);
+	let needsImages = $derived(
+		selectedTemplate ? !(selectedTemplate.imageCountMin === 0 && selectedTemplate.imageCountMax === 0) : false
+	);
+	let imageCountHint = $derived(
+		selectedTemplate ? formatImageCountHint(selectedTemplate.imageCountMin, selectedTemplate.imageCountMax) : ''
+	);
+	let currentResolvedPrompt = $derived(
+		selectedTemplate && hasPlaceholders ? resolvePrompt(selectedTemplate.prompt, placeholderValues) : input
+	);
 
 	onMount(() => {
 		taskManager.loadFromHistory();
@@ -78,9 +93,8 @@
 		}
 		selectedTemplate = tpl;
 		placeholderValues = {};
-		const hasPlaceholders = /\{[^}]+\}/.test(tpl.prompt);
-		input = hasPlaceholders ? '' : tpl.prompt;
-		textareaRef?.focus();
+		const tplHasPlaceholders = /\{[^}]+\}/.test(tpl.prompt);
+		input = tplHasPlaceholders ? '' : tpl.prompt;
 	}
 
 	function deselectTemplate() {
@@ -289,10 +303,7 @@
 				{groupedTemplates}
 				loading={templatesLoading}
 				{selectedTemplate}
-				{placeholderValues}
 				onSelectTemplate={selectTemplate}
-				onDeselectTemplate={deselectTemplate}
-				onPlaceholderChange={(key, value) => { placeholderValues = { ...placeholderValues, [key]: value }; }}
 			/>
 		</Tabs.Content>
 
@@ -309,22 +320,47 @@
 		</Tabs.Content>
 	</div>
 
-	<ImageGenInputBar
-		{input}
-		{attachedFiles}
-		{selectedTemplate}
-		{selectedRatio}
-		{isDragging}
-		onSubmit={handleSubmit}
-		onRemoveFile={removeFile}
-		onOpenFilePicker={() => fileInputRef?.click()}
-		onSelectRatio={(ratio) => (selectedRatio = ratio)}
-		onDeselectTemplate={deselectTemplate}
-		onKeyDown={handleKeyDown}
-		onPaste={handlePaste}
-		onInput={(value) => { input = value; }}
-		onTextareaRef={(el) => { textareaRef = el; }}
-	/>
+	<!-- Bottom bar: only on templates tab -->
+	{#if activeTab === 'templates'}
+		{#if selectedTemplate && hasPlaceholders}
+			<TemplatePlaceholderBar
+				template={selectedTemplate}
+				{placeholders}
+				{placeholderValues}
+				resolvedPrompt={currentResolvedPrompt}
+				{attachedFiles}
+				{selectedRatio}
+				{needsImages}
+				{imageCountHint}
+				{isDragging}
+				onPlaceholderChange={(key, value) => { placeholderValues = { ...placeholderValues, [key]: value }; }}
+				onSubmit={handleSubmit}
+				onDeselectTemplate={deselectTemplate}
+				onRemoveFile={removeFile}
+				onOpenFilePicker={() => fileInputRef?.click()}
+				onSelectRatio={(ratio) => (selectedRatio = ratio)}
+				onKeyDown={handleKeyDown}
+				onPaste={handlePaste}
+			/>
+		{:else}
+			<ImageGenInputBar
+				{input}
+				{attachedFiles}
+				{selectedTemplate}
+				{selectedRatio}
+				{isDragging}
+				onSubmit={handleSubmit}
+				onRemoveFile={removeFile}
+				onOpenFilePicker={() => fileInputRef?.click()}
+				onSelectRatio={(ratio) => (selectedRatio = ratio)}
+				onDeselectTemplate={deselectTemplate}
+				onKeyDown={handleKeyDown}
+				onPaste={handlePaste}
+				onInput={(value) => { input = value; }}
+				onTextareaRef={(el) => { textareaRef = el; }}
+			/>
+		{/if}
+	{/if}
 </Tabs.Root>
 
 <input
