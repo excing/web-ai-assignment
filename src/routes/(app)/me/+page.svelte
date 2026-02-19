@@ -11,6 +11,7 @@
         LogOut,
         ChevronRight,
         ShieldCheck,
+        Info,
     } from "lucide-svelte";
     import { goto } from "$app/navigation";
     import { getCurrentUser, getAuthLoaded, clearAuthState } from "$lib/stores/auth.svelte";
@@ -61,7 +62,13 @@
             label: "帮助与反馈",
             description: "获取帮助或提交反馈",
             icon: HelpCircle,
-            href: "/me/settings",
+            href: "/me/help",
+        },
+        {
+            label: "关于",
+            description: "版本信息与功能介绍",
+            icon: Info,
+            href: "/me/about",
         },
     ];
 
