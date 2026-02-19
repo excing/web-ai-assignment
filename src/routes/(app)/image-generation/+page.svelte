@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import {
 		Loader2,
 		Send,
@@ -10,22 +12,8 @@
 		Paperclip,
 		X,
 		Sparkles,
-		Wand2,
-		Layers,
-		Flame,
 		Clock,
-		LayoutGrid,
-		Cat,
-		Mountain,
-		Rocket,
-		Paintbrush,
-		Camera,
-		Flower2,
-		Palette,
-		Drama,
-		TreePine,
-		Gem,
-		Bot
+		LayoutGrid
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
@@ -35,6 +23,22 @@
 	import { compressImage } from '$lib/utils/image-compress';
 	import { cn } from '$lib/utils';
 	import { setHeaderSlots, clearHeaderSlots } from '$lib/stores/page-header.svelte';
+
+	// ── 模板类型 ──
+	interface ApiTemplate {
+		id: string;
+		name: string;
+		category: string;
+		prompt: string;
+		previewImageUrl: string | null;
+		description: string | null;
+		imageCountMin: number;
+		imageCountMax: number;
+		assignmentId: string | null;
+		featureKey: string | null;
+		sortOrder: number;
+		isPinned: boolean;
+	}
 
 	// ── 状态 ──
 	let activeTab = $state<'templates' | 'history'>('templates');
@@ -48,8 +52,37 @@
 	let textareaRef = $state<HTMLTextAreaElement | null>(null);
 	let selectedRatio = $state<AspectRatio>(IMAGE_GEN.DEFAULT_ASPECT_RATIO);
 
+	// ── 模板状态 ──
+	let templates = $state<ApiTemplate[]>([]);
+	let groupedTemplates = $state<Record<string, ApiTemplate[]>>({});
+	let templatesLoading = $state(true);
+	let selectedTemplate = $state<ApiTemplate | null>(null);
+	let placeholderValues = $state<Record<string, string>>({});
+
+	// ── 派生: 从选中模板提取占位符 ──
+	let placeholders = $derived(
+		selectedTemplate
+			? [...(selectedTemplate.prompt.matchAll(/\{([^}]+)\}/g))].map(m => m[1])
+			: []
+	);
+
+	// ── 派生: 将占位符替换为用户输入后的最终提示词 ──
+	let resolvedPrompt = $derived(() => {
+		if (!selectedTemplate) return input;
+		if (placeholders.length === 0) return selectedTemplate.prompt;
+		let result = selectedTemplate.prompt;
+		for (const key of placeholders) {
+			const val = placeholderValues[key]?.trim();
+			if (val) {
+				result = result.replaceAll(`{${key}}`, val);
+			}
+		}
+		return result;
+	});
+
 	onMount(() => {
 		taskManager.loadFromHistory();
+		loadTemplates();
 	});
 
 	// ── Top Bar 注入 tab 切换 ──
@@ -58,32 +91,66 @@
 		return () => clearHeaderSlots();
 	});
 
-	// ── 模板数据 ──
-	interface PromptTemplate {
-		icon: typeof Sparkles;
-		label: string;
-		prompt: string;
-		color: string;
+	// ── 加载模板 ──
+	async function loadTemplates() {
+		templatesLoading = true;
+		try {
+			const res = await fetch('/api/templates');
+			if (res.ok) {
+				const data = await res.json();
+				templates = data.templates || [];
+				groupedTemplates = data.grouped || {};
+			}
+		} catch {
+			// 静默失败，模板不影响核心功能
+		} finally {
+			templatesLoading = false;
+		}
 	}
 
-	const templates: PromptTemplate[] = [
-		{ icon: Cat, label: '水彩猫咪', prompt: '一只可爱的猫咪在花园里玩耍，阳光洒落，水彩画风格', color: 'text-amber-500' },
-		{ icon: Flame, label: '赛博朋克', prompt: '未来城市的夜景，霓虹灯闪烁，赛博朋克风格，高楼大厦', color: 'text-rose-500' },
-		{ icon: Mountain, label: '油画风景', prompt: '宁静的湖边日落景色，远山倒影，油画质感，暖色调', color: 'text-emerald-500' },
-		{ icon: Rocket, label: '太空幻想', prompt: '科幻风格的太空站，星空背景，太空人漂浮，精细渲染', color: 'text-violet-500' },
-		{ icon: Paintbrush, label: '水墨画', prompt: '中国传统水墨画风格的山水画，留白意境，松树云雾', color: 'text-stone-500' },
-		{ icon: Camera, label: '胶片质感', prompt: '复古胶片风格的街头摄影，柔和色调，自然光线，浅景深', color: 'text-orange-500' },
-		{ icon: Flower2, label: '花卉微距', prompt: '一朵盛开的玫瑰花微距特写，水滴在花瓣上，背景虚化', color: 'text-pink-500' },
-		{ icon: Palette, label: '波普艺术', prompt: '安迪·沃霍尔波普艺术风格，大胆的色彩拼贴，创意图案', color: 'text-yellow-500' },
-		{ icon: Drama, label: '动漫角色', prompt: '日系动漫风格的角色设计，精致五官，动感姿态，高清', color: 'text-sky-500' },
-		{ icon: TreePine, label: '梦幻森林', prompt: '魔幻风格的森林场景，萤火虫发光，神秘氛围，奇幻色彩', color: 'text-teal-500' },
-		{ icon: Gem, label: '奢华珠宝', prompt: '精致的宝石珠宝，钻石切面闪光，黑色丝绒背景，产品摄影', color: 'text-indigo-500' },
-		{ icon: Bot, label: '机甲战士', prompt: '精密的机甲战士设计图，金属质感，霓虹发光线条，暗色调', color: 'text-cyan-500' },
-	];
-
-	function useTemplate(prompt: string) {
-		input = prompt;
+	// ── 选择模板 ──
+	function selectTemplate(tpl: ApiTemplate) {
+		if (selectedTemplate?.id === tpl.id) {
+			// 取消选中
+			selectedTemplate = null;
+			placeholderValues = {};
+			input = '';
+			return;
+		}
+		selectedTemplate = tpl;
+		placeholderValues = {};
+		// 如果无占位符，直接填入 prompt
+		const hasPlaceholders = /\{[^}]+\}/.test(tpl.prompt);
+		if (!hasPlaceholders) {
+			input = tpl.prompt;
+		} else {
+			input = '';
+		}
 		textareaRef?.focus();
+	}
+
+	// ── 图片数量校验 ──
+	function validateImageCount(): string | null {
+		if (!selectedTemplate) return null;
+		const { imageCountMin, imageCountMax } = selectedTemplate;
+		const count = attachedFiles.length;
+		// 0-0 = 不限
+		if (imageCountMin === 0 && imageCountMax === 0) return null;
+		if (imageCountMin > 0 && count < imageCountMin) {
+			return `该模板至少需要 ${imageCountMin} 张参考图`;
+		}
+		if (imageCountMax > 0 && count > imageCountMax) {
+			return `该模板最多允许 ${imageCountMax} 张参考图`;
+		}
+		return null;
+	}
+
+	function formatImageCountHint(min: number, max: number): string {
+		if (min === 0 && max === 0) return '';
+		if (min === max) return `需要 ${min} 张参考图`;
+		if (min > 0 && max === 0) return `至少需要 ${min} 张参考图`;
+		if (min === 0 && max > 0) return `最多 ${max} 张参考图`;
+		return `需要 ${min}-${max} 张参考图`;
 	}
 
 	// ── Gallery ──
@@ -99,14 +166,36 @@
 
 	// ── 提交 ──
 	function handleSubmit() {
-		const trimmedInput = input.trim();
-		if (!trimmedInput && attachedFiles.length === 0) {
+		// 图片数量校验
+		const imageError = validateImageCount();
+		if (imageError) {
+			toast.error(imageError);
+			return;
+		}
+
+		// 构建最终提示词
+		let finalPrompt: string;
+		if (selectedTemplate && placeholders.length > 0) {
+			finalPrompt = resolvedPrompt();
+			// 检查是否有未填写的占位符
+			if (/\{[^}]+\}/.test(finalPrompt)) {
+				toast.error('请填写所有占位符');
+				return;
+			}
+		} else {
+			finalPrompt = input.trim();
+		}
+
+		if (!finalPrompt && attachedFiles.length === 0) {
 			toast.error('请输入描述或上传图片');
 			return;
 		}
 
-		taskManager.createTask(trimmedInput, attachedFiles.map((f) => f.file), selectedRatio);
+		const featureKey = selectedTemplate?.featureKey || undefined;
+		taskManager.createTask(finalPrompt, attachedFiles.map((f) => f.file), selectedRatio, featureKey);
 		input = '';
+		selectedTemplate = null;
+		placeholderValues = {};
 		attachedFiles.forEach((f) => URL.revokeObjectURL(f.previewUrl));
 		attachedFiles = [];
 		selectedRatio = IMAGE_GEN.DEFAULT_ASPECT_RATIO;
@@ -298,27 +387,118 @@
 					<p class="mt-0.5 text-sm text-muted-foreground">选择一个模板快速开始，或直接输入你的描述</p>
 				</div>
 
-				<!-- 模板网格 -->
-				<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
-					{#each templates as tpl, i}
-						<button
-							onclick={() => useTemplate(tpl.prompt)}
-							class="group relative flex flex-col items-start gap-2.5 rounded-2xl border border-border/50 bg-card p-4 text-left transition-all hover:border-border hover:bg-accent/50 hover:shadow-sm active:scale-[0.97]"
-							style="animation: fadeSlideIn 0.3s ease both; animation-delay: {i * 30}ms;"
+				{#if templatesLoading}
+					<!-- 加载骨架 -->
+					<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
+						{#each Array(6) as _}
+							<Skeleton class="h-28 rounded-2xl" />
+						{/each}
+					</div>
+				{:else if templates.length === 0}
+					<!-- 空模板 -->
+					<div class="flex flex-col items-center py-12 text-center">
+						<Sparkles class="h-10 w-10 text-muted-foreground/30" />
+						<p class="mt-3 text-sm text-muted-foreground">暂无模板，请直接输入描述</p>
+					</div>
+				{:else}
+					<!-- 选中模板的占位符输入 -->
+					{#if selectedTemplate && placeholders.length > 0}
+						<div
+							class="mb-4 rounded-2xl border border-primary/20 bg-primary/5 p-4"
+							style="animation: fadeSlideIn 0.2s ease both;"
 						>
-							<div class={cn(
-								'flex h-9 w-9 items-center justify-center rounded-xl transition-transform group-hover:scale-110',
-								'bg-muted/70'
-							)}>
-								<tpl.icon class={cn('h-[18px] w-[18px]', tpl.color)} />
+							<div class="mb-3 flex items-center justify-between">
+								<div class="flex items-center gap-2">
+									{#if selectedTemplate.previewImageUrl}
+										<img
+											src={selectedTemplate.previewImageUrl}
+											alt={selectedTemplate.name}
+											class="h-8 w-8 rounded-lg object-cover"
+										/>
+									{/if}
+									<span class="text-sm font-medium">{selectedTemplate.name}</span>
+								</div>
+								<button
+									onclick={() => { selectedTemplate = null; placeholderValues = {}; input = ''; }}
+									class="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+								>
+									<X class="h-3.5 w-3.5" />
+								</button>
 							</div>
-							<div>
-								<p class="text-sm font-medium text-foreground">{tpl.label}</p>
-								<p class="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground/70">{tpl.prompt}</p>
+							{#if selectedTemplate.description}
+								<p class="mb-3 text-xs text-muted-foreground">{selectedTemplate.description}</p>
+							{/if}
+							<div class="space-y-2">
+								{#each placeholders as placeholder}
+									<div class="flex items-center gap-2">
+										<span class="flex-shrink-0 text-xs text-muted-foreground/80 w-20 text-right">{placeholder}</span>
+										<Input
+											value={placeholderValues[placeholder] ?? ''}
+											oninput={(e) => { placeholderValues = { ...placeholderValues, [placeholder]: (e.target as HTMLInputElement).value }; }}
+											placeholder={`输入${placeholder}`}
+											class="h-8 text-sm"
+										/>
+									</div>
+								{/each}
 							</div>
-						</button>
+							{#if formatImageCountHint(selectedTemplate.imageCountMin, selectedTemplate.imageCountMax)}
+								<p class="mt-2 text-xs text-muted-foreground/60">
+									{formatImageCountHint(selectedTemplate.imageCountMin, selectedTemplate.imageCountMax)}
+								</p>
+							{/if}
+						</div>
+					{/if}
+
+					<!-- 按分类分组展示模板 -->
+					{#each Object.entries(groupedTemplates) as [category, categoryTemplates], ci}
+						<div class={ci > 0 ? 'mt-5' : ''}>
+							{#if Object.keys(groupedTemplates).length > 1}
+								<h3 class="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">{category}</h3>
+							{/if}
+							<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
+								{#each categoryTemplates as tpl, i}
+									<button
+										onclick={() => selectTemplate(tpl)}
+										class={cn(
+											'group relative flex flex-col items-start gap-2 rounded-2xl border bg-card p-3 text-left transition-all hover:shadow-sm active:scale-[0.97]',
+											selectedTemplate?.id === tpl.id
+												? 'border-primary/40 bg-primary/5 shadow-sm'
+												: 'border-border/50 hover:border-border hover:bg-accent/50'
+										)}
+										style="animation: fadeSlideIn 0.3s ease both; animation-delay: {(ci * 4 + i) * 30}ms;"
+									>
+										{#if tpl.previewImageUrl}
+											<div class="w-full overflow-hidden rounded-xl">
+												<img
+													src={tpl.previewImageUrl}
+													alt={tpl.name}
+													class="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-105"
+												/>
+											</div>
+										{:else}
+											<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/70 transition-transform group-hover:scale-110">
+												<Sparkles class="h-[18px] w-[18px] text-muted-foreground" />
+											</div>
+										{/if}
+										<div class="w-full">
+											<p class="text-sm font-medium text-foreground">{tpl.name}</p>
+											{#if tpl.description}
+												<p class="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground/70">{tpl.description}</p>
+											{:else}
+												<p class="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground/70">{tpl.prompt}</p>
+											{/if}
+										</div>
+										{#if tpl.isPinned}
+											<div class="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary/10">
+												<Sparkles class="h-3 w-3 text-primary" />
+											</div>
+										{/if}
+									</button>
+								{/each}
+							</div>
+						</div>
 					{/each}
-				</div>
+				{/if}
 			</div>
 		{:else}
 			<!-- ══════════════════ 历史 Tab ══════════════════ -->
@@ -534,6 +714,19 @@
 	<!-- ── 底部输入栏 ── -->
 	<div class="border-t bg-background/95 px-4 py-3 backdrop-blur-sm">
 		<form class="mx-auto max-w-2xl lg:max-w-3xl" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+			<!-- 选中模板提示（无占位符时） -->
+			{#if selectedTemplate && placeholders.length === 0}
+				<div class="mb-2 flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-1.5">
+					<span class="text-xs text-primary/80">模板: {selectedTemplate.name}</span>
+					<button
+						type="button"
+						onclick={() => { selectedTemplate = null; input = ''; }}
+						class="ml-auto text-muted-foreground hover:text-foreground"
+					>
+						<X class="h-3 w-3" />
+					</button>
+				</div>
+			{/if}
 			{#if attachedFiles.length > 0}
 				<div class="mb-2 flex gap-2 overflow-x-auto pb-1">
 					{#each attachedFiles as file (file.id)}
@@ -602,7 +795,7 @@
 					type="submit"
 					size="icon"
 					class="h-9 w-9 flex-shrink-0 rounded-xl"
-					disabled={!input.trim() && attachedFiles.length === 0}
+					disabled={(!input.trim() && attachedFiles.length === 0 && !(selectedTemplate && placeholders.length > 0))}
 				>
 					<Send class="h-4 w-4" />
 				</Button>

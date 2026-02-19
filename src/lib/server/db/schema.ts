@@ -163,3 +163,25 @@ export const aiProxyAssignment = pgTable('ai_proxy_assignment', {
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
+
+// Image Generation Template - 图片生成模板表
+export const imageGenTemplate = pgTable('image_gen_template', {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(), // 模板名称
+    category: text('category').notNull(), // 分类（自由文本）
+    prompt: text('prompt').notNull(), // 提示词，支持 {占位符}
+    previewImageUrl: text('preview_image_url'), // 效果图 URL
+    description: text('description'), // 使用说明
+    imageCountMin: integer('image_count_min').notNull().default(0), // 最少参考图数量
+    imageCountMax: integer('image_count_max').notNull().default(0), // 最多参考图数量（0-0 表示不限）
+    assignmentId: text('assignment_id')
+        .references(() => aiProxyAssignment.id, { onDelete: 'set null' }), // 关联的 AI Proxy Assignment
+    sortOrder: integer('sort_order').notNull().default(0), // 排序（数值越大越靠前）
+    isPinned: boolean('is_pinned').notNull().default(false), // 是否置顶
+    isActive: boolean('is_active').notNull().default(true), // 是否启用
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow()
+}, (table) => [
+    index('image_gen_template_category_idx').on(table.category),
+    index('image_gen_template_is_active_idx').on(table.isActive),
+]);

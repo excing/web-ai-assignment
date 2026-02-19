@@ -63,3 +63,40 @@ export interface AssignmentFormData {
 	outputPer1k: string;
 	minimum: string;
 }
+
+// ============ 图片生成模板管理 ============
+
+export interface ImageGenTemplate {
+	id: string;
+	name: string;
+	category: string;
+	prompt: string;
+	previewImageUrl: string | null;
+	description: string | null;
+	imageCountMin: number;
+	imageCountMax: number;
+	assignmentId: string | null;
+	sortOrder: number;
+	isPinned: boolean;
+	isActive: boolean;
+	createdAt: string;
+	updatedAt: string;
+	// 关联信息（JOIN 查询时填充）
+	assignmentName?: string;
+	featureKey?: string;
+}
+
+export interface TemplateFormData {
+	id: string;
+	name: string;
+	category: string;
+	prompt: string;
+	previewImageUrl: string;
+	description: string;
+	imageCountMin: string;
+	imageCountMax: string;
+	assignmentId: string;
+	sortOrder: string;
+	isPinned: boolean;
+	isActive: boolean;
+}

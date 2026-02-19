@@ -26,6 +26,8 @@ export interface GenerationTask {
 	attachedPreviews?: string[];
 	/** 多图合成画布比例 */
 	aspectRatio?: AspectRatio;
+	/** 模板关联的 feature key（用于路由到对应 AI proxy） */
+	featureKey?: string;
 	error?: string;
 	createdAt: number;
 	completedAt?: number;
@@ -83,7 +85,7 @@ class TaskManager {
 	/**
 	 * 创建新任务
 	 */
-	createTask(prompt: string, files?: File[], aspectRatio?: AspectRatio): string {
+	createTask(prompt: string, files?: File[], aspectRatio?: AspectRatio, featureKey?: string): string {
 		console.log('TaskManager.createTask called with prompt:', prompt, 'files:', files?.length);
 
 		const id = generateUUID();
@@ -97,6 +99,7 @@ class TaskManager {
 			mediaResources: [],
 			attachedFiles: validFiles.length > 0 ? validFiles : undefined,
 			aspectRatio: validFiles.length > 1 ? (aspectRatio ?? IMAGE_GEN.DEFAULT_ASPECT_RATIO) : undefined,
+			featureKey,
 			createdAt: Date.now()
 		};
 
@@ -138,8 +141,8 @@ class TaskManager {
 		this.updateTaskStatus(task.id, 'loading');
 
 		try {
-			// 执行任务（传递附件文件和合成比例）
-			const result = await this.executeTask(task.prompt, task.attachedFiles, task.aspectRatio);
+			// 执行任务（传递附件文件、合成比例和 feature key）
+			const result = await this.executeTask(task.prompt, task.attachedFiles, task.aspectRatio, task.featureKey);
 
 			// 更新任务结果
 			this.updateTaskResult(task.id, result.mediaResources);
@@ -178,7 +181,8 @@ class TaskManager {
 	private async executeTask(
 		prompt: string,
 		files?: File[],
-		aspectRatio?: AspectRatio
+		aspectRatio?: AspectRatio,
+		featureKey?: string
 	): Promise<{ mediaResources: MediaResource[] }> {
 		// 构建消息 parts
 		const parts: Array<Record<string, unknown>> = [];
@@ -205,7 +209,7 @@ class TaskManager {
 			parts.push({ type: 'text', text: '生成一张图片' });
 		}
 
-		const res = await fetch('/api/generate-text', {
+		const res = await fetch('/api/image-gen', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -214,7 +218,8 @@ class TaskManager {
 						role: 'user',
 						parts
 					}
-				]
+				],
+				featureKey
 			})
 		});
 

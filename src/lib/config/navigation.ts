@@ -4,6 +4,7 @@ import {
 	Ticket,
 	Server,
 	ImageIcon,
+	LayoutTemplate,
 	type Icon,
 } from 'lucide-svelte';
 import type { ComponentType } from 'svelte';
@@ -36,6 +37,7 @@ export const adminNavItems: AdminNavItem[] = [
 	{ key: 'admin-packages', label: '套餐管理', icon: Package, href: '/admin/packages' },
 	{ key: 'admin-codes', label: '兑换码管理', icon: Ticket, href: '/admin/codes' },
 	{ key: 'admin-ai-proxy', label: 'AI Proxy', icon: Server, href: '/admin/ai-proxy' },
+	{ key: 'admin-templates', label: '模板管理', icon: LayoutTemplate, href: '/admin/templates' },
 ];
 
 // ─── 默认路由 ─────────────────────────────────────────────
