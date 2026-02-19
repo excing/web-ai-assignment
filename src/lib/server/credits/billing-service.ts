@@ -9,11 +9,11 @@
  * - charge 是硬执行：响应已发送后必须扣费，允许负余额
  */
 
-import { env } from '$env/dynamic/private';
 import { getBalance } from './credit-service';
 import { deductCredits } from './deduction-service';
 import type { ProxyConfig } from '$lib/server/ai-proxy';
 import type { DeductionResult } from './billing-types';
+import { CREDITS } from '$lib/config/constants';
 
 // ─── 错误类型 ───
 
@@ -212,24 +212,24 @@ export class BillingService {
 
 	/**
 	 * 获取固定扣费积分。
-	 * 优先用 ProxyConfig.minimum，fallback 到环境变量。
+	 * 优先用 ProxyConfig.minimum，fallback 到常量默认值。
 	 */
 	static getFixedCost(config: ProxyConfig): number {
 		if (config.minimum != null && config.minimum > 0) {
 			return config.minimum;
 		}
-		return parseInt(env.CREDITS_IMAGE_GENERATION_COST ?? '5', 10);
+		return CREDITS.DEFAULT_FIXED_COST;
 	}
 
 	/**
 	 * 获取动态计费定价。
-	 * 优先用 ProxyConfig 字段，fallback 到环境变量。
+	 * 优先用 ProxyConfig 字段，fallback 到常量默认值。
 	 */
 	static getDynamicPricing(config: ProxyConfig): DynamicPricing {
 		return {
-			inputPer1k: config.inputPer1k ?? parseFloat(env.CREDITS_CHAT_INPUT_PER_1K ?? '1'),
-			outputPer1k: config.outputPer1k ?? parseFloat(env.CREDITS_CHAT_OUTPUT_PER_1K ?? '2'),
-			minimum: config.minimum ?? parseInt(env.CREDITS_CHAT_MINIMUM ?? '1', 10),
+			inputPer1k: config.inputPer1k ?? CREDITS.DEFAULT_DYNAMIC_PRICING.INPUT_PER_1K,
+			outputPer1k: config.outputPer1k ?? CREDITS.DEFAULT_DYNAMIC_PRICING.OUTPUT_PER_1K,
+			minimum: config.minimum ?? CREDITS.DEFAULT_DYNAMIC_PRICING.MINIMUM,
 		};
 	}
 }

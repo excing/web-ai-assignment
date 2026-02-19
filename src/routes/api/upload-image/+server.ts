@@ -2,9 +2,9 @@ import { uploadImageAssets } from '$lib/server/upload-image';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { randomUUID } from 'crypto';
-import { env } from '$env/dynamic/private';
 import { getBalance } from '$lib/server/credits/credit-service';
 import { deductCredits } from '$lib/server/credits/deduction-service';
+import { CREDITS } from '$lib/config/constants';
 
 // MIME 类型到合法扩展名的映射
 const mimeToExtensions: Record<string, string[]> = {
@@ -15,17 +15,13 @@ const mimeToExtensions: Record<string, string[]> = {
 };
 const allowedMimeTypes = Object.keys(mimeToExtensions);
 
-function getUploadCreditCost(): number {
-    return parseInt(env.CREDITS_UPLOAD_COST ?? '5', 10);
-}
-
 export const POST: RequestHandler = async ({ request, locals }) => {
     const userId = locals.session?.user?.id;
 
     try {
         // 计费预检
         if (userId) {
-            const cost = getUploadCreditCost();
+            const cost = CREDITS.UPLOAD_COST;
             const balance = await getBalance(userId);
             if (balance < cost) {
                 return json({
@@ -72,7 +68,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // 计费扣款
         if (userId) {
-            const cost = getUploadCreditCost();
+            const cost = CREDITS.UPLOAD_COST;
             await deductCredits({
                 userId,
                 amount: cost,

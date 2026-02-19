@@ -48,6 +48,19 @@ export const HEALTH_STATUS = {
 export const CREDITS = {
 	/** 低余额警告阈值 */
 	LOW_BALANCE_WARNING: 10,
+	/** 固定扣费回退值（图片生成等，数据库未配置时使用） */
+	DEFAULT_FIXED_COST: 5,
+	/** 文件上传固定扣费 */
+	UPLOAD_COST: 5,
+	/** 动态计费回退值（数据库未配置时使用） */
+	DEFAULT_DYNAMIC_PRICING: {
+		/** 每千 token 输入费用 */
+		INPUT_PER_1K: 1,
+		/** 每千 token 输出费用 */
+		OUTPUT_PER_1K: 2,
+		/** 最低消费积分 */
+		MINIMUM: 1,
+	},
 } as const;
 
 // ─── UI ──────────────────────────────────────────────────────
