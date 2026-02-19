@@ -71,3 +71,22 @@ export const CHAT_ATTACHMENTS = {
 	/** 人类可读最大大小 */
 	MAX_SIZE_LABEL: '5MB',
 } as const;
+
+// ─── 图片生成 ──────────────────────────────────────────────
+
+export type AspectRatio = '1:1' | '4:3' | '16:9' | '9:16';
+
+export const IMAGE_GEN = {
+	/** 单次最多参考图数量 */
+	MAX_REFERENCE_IMAGES: 9,
+	/** 合成画布最大边长 (px) */
+	CANVAS_MAX_SIDE: 2048,
+	/** 合成 JPEG 质量 */
+	CANVAS_QUALITY: 0.85,
+	/** 图片间距 (px) */
+	CANVAS_GAP: 8,
+	/** 可选画布比例 */
+	ASPECT_RATIOS: ['1:1', '4:3', '16:9', '9:16'] as AspectRatio[],
+	/** 默认画布比例 */
+	DEFAULT_ASPECT_RATIO: '1:1' as AspectRatio,
+} as const;

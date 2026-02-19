@@ -31,7 +31,7 @@
 	import { onMount } from 'svelte';
 	import { taskManager, type MediaResource } from '$lib/stores/task-manager.svelte';
 	import ImageGallery from '$lib/components/image-gallery.svelte';
-	import { CHAT_ATTACHMENTS, UI } from '$lib/config/constants';
+	import { CHAT_ATTACHMENTS, IMAGE_GEN, UI, type AspectRatio } from '$lib/config/constants';
 	import { compressImage } from '$lib/utils/image-compress';
 	import { cn } from '$lib/utils';
 	import { setHeaderSlots, clearHeaderSlots } from '$lib/stores/page-header.svelte';
@@ -46,6 +46,7 @@
 	let attachedFiles = $state<Array<{ id: string; file: File; previewUrl: string }>>([]);
 	let isDragging = $state(false);
 	let textareaRef = $state<HTMLTextAreaElement | null>(null);
+	let selectedRatio = $state<AspectRatio>(IMAGE_GEN.DEFAULT_ASPECT_RATIO);
 
 	onMount(() => {
 		taskManager.loadFromHistory();
@@ -104,10 +105,11 @@
 			return;
 		}
 
-		taskManager.createTask(trimmedInput, attachedFiles.map((f) => f.file));
+		taskManager.createTask(trimmedInput, attachedFiles.map((f) => f.file), selectedRatio);
 		input = '';
 		attachedFiles.forEach((f) => URL.revokeObjectURL(f.previewUrl));
 		attachedFiles = [];
+		selectedRatio = IMAGE_GEN.DEFAULT_ASPECT_RATIO;
 		if (textareaRef) textareaRef.style.height = 'auto';
 
 		// 提交后自动切到历史 tab
@@ -126,8 +128,8 @@
 
 	async function addFiles(files: File[]) {
 		for (const file of files) {
-			if (attachedFiles.length >= CHAT_ATTACHMENTS.MAX_FILES) {
-				toast.error(`最多同时上传 ${CHAT_ATTACHMENTS.MAX_FILES} 张图片`);
+			if (attachedFiles.length >= IMAGE_GEN.MAX_REFERENCE_IMAGES) {
+				toast.error(`最多同时上传 ${IMAGE_GEN.MAX_REFERENCE_IMAGES} 张参考图`);
 				break;
 			}
 			if (!CHAT_ATTACHMENTS.ALLOWED_TYPES.includes(file.type)) {
@@ -547,6 +549,29 @@
 						</div>
 					{/each}
 				</div>
+
+				<!-- 多图合成比例选择器 -->
+				{#if attachedFiles.length >= 2}
+					<div class="mb-2 flex items-center gap-2">
+						<span class="text-xs text-muted-foreground/60">画布比例</span>
+						<div class="flex items-center rounded-lg bg-muted/60 p-0.5">
+							{#each IMAGE_GEN.ASPECT_RATIOS as ratio}
+								<button
+									type="button"
+									onclick={() => (selectedRatio = ratio)}
+									class={cn(
+										'rounded-md px-2.5 py-1 text-xs font-medium transition-all',
+										selectedRatio === ratio
+											? 'bg-background text-foreground shadow-sm'
+											: 'text-muted-foreground hover:text-foreground'
+									)}
+								>
+									{ratio}
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
 			{/if}
 
 			<div class={cn(
@@ -556,7 +581,7 @@
 				<button
 					type="button"
 					class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
-					disabled={attachedFiles.length >= CHAT_ATTACHMENTS.MAX_FILES}
+					disabled={attachedFiles.length >= IMAGE_GEN.MAX_REFERENCE_IMAGES}
 					onclick={openFilePicker}
 				>
 					<Paperclip class="h-4 w-4" />

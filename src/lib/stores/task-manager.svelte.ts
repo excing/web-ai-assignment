@@ -3,6 +3,8 @@ import { refreshCurrentUser } from './auth.svelte';
 import { fetchCreditBalance } from './credits.svelte';
 import { generateUUID } from '$lib/utils/uuid';
 import { saveImageGenTasks, loadImageGenTasks, clearImageGenHistory } from './image-gen-history.svelte';
+import { compositeImages } from '$lib/utils/image-composite';
+import { IMAGE_GEN, type AspectRatio } from '$lib/config/constants';
 
 
 export interface MediaResource {
@@ -22,6 +24,8 @@ export interface GenerationTask {
 	attachedFiles?: File[];
 	/** 附件预览 URL（base64 data URL，用于任务卡展示） */
 	attachedPreviews?: string[];
+	/** 多图合成画布比例 */
+	aspectRatio?: AspectRatio;
 	error?: string;
 	createdAt: number;
 	completedAt?: number;
@@ -79,7 +83,7 @@ class TaskManager {
 	/**
 	 * 创建新任务
 	 */
-	createTask(prompt: string, files?: File[]): string {
+	createTask(prompt: string, files?: File[], aspectRatio?: AspectRatio): string {
 		console.log('TaskManager.createTask called with prompt:', prompt, 'files:', files?.length);
 
 		const id = generateUUID();
@@ -92,6 +96,7 @@ class TaskManager {
 			status: 'pending',
 			mediaResources: [],
 			attachedFiles: validFiles.length > 0 ? validFiles : undefined,
+			aspectRatio: validFiles.length > 1 ? (aspectRatio ?? IMAGE_GEN.DEFAULT_ASPECT_RATIO) : undefined,
 			createdAt: Date.now()
 		};
 
@@ -133,8 +138,8 @@ class TaskManager {
 		this.updateTaskStatus(task.id, 'loading');
 
 		try {
-			// 执行任务（传递附件文件）
-			const result = await this.executeTask(task.prompt, task.attachedFiles);
+			// 执行任务（传递附件文件和合成比例）
+			const result = await this.executeTask(task.prompt, task.attachedFiles, task.aspectRatio);
 
 			// 更新任务结果
 			this.updateTaskResult(task.id, result.mediaResources);
@@ -168,11 +173,12 @@ class TaskManager {
 	}
 
 	/**
-	 * 执行任务（支持附件图片的图生图）
+	 * 执行任务（多图自动合成为单张后发送）
 	 */
 	private async executeTask(
 		prompt: string,
-		files?: File[]
+		files?: File[],
+		aspectRatio?: AspectRatio
 	): Promise<{ mediaResources: MediaResource[] }> {
 		// 构建消息 parts
 		const parts: Array<Record<string, unknown>> = [];
@@ -182,20 +188,16 @@ class TaskManager {
 			parts.push({ type: 'text', text: prompt });
 		}
 
-		// 将附件文件转为 base64 data URL 并作为 file parts 发送
+		// 多图合成为单张，单图直接使用
 		if (files && files.length > 0) {
-			const fileParts = await Promise.all(
-				files.map(async (file) => {
-					const dataUrl = await this.fileToDataUrl(file);
-					return {
-						type: 'file',
-						mediaType: file.type,
-						filename: file.name,
-						url: dataUrl
-					};
-				})
-			);
-			parts.push(...fileParts);
+			const composited = await compositeImages(files, aspectRatio);
+			const dataUrl = await this.fileToDataUrl(composited);
+			parts.push({
+				type: 'file',
+				mediaType: composited.type,
+				filename: composited.name,
+				url: dataUrl
+			});
 		}
 
 		// 确保至少有一个 part
