@@ -270,7 +270,12 @@
 								{#if task.attachedPreviews && task.attachedPreviews.length > 0}
 									<div class="mt-2 flex gap-1.5">
 										{#each task.attachedPreviews as preview, i}
-											<img src={preview} alt="参考图 {i + 1}" class="h-10 w-10 rounded-lg border object-cover" />
+											<button
+												onclick={() => openGallery(task.attachedPreviews?.map((p, idx) => ({ type: 'image' as const, data: p, filename: `参考图 ${idx + 1}` })) || [], i)}
+												class="cursor-pointer overflow-hidden rounded-lg border transition-opacity hover:opacity-80"
+											>
+												<img src={preview} alt="参考图 {i + 1}" class="h-10 w-10 object-cover" />
+											</button>
 										{/each}
 									</div>
 								{/if}

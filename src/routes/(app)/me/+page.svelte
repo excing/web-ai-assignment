@@ -10,16 +10,20 @@
         HelpCircle,
         LogOut,
         ChevronRight,
+        ShieldCheck,
     } from "lucide-svelte";
     import { goto } from "$app/navigation";
     import { getCurrentUser, getAuthLoaded, clearAuthState } from "$lib/stores/auth.svelte";
     import { getCreditBalance } from "$lib/stores/credits.svelte";
+    import { getIsAdmin } from "$lib/stores/admin.svelte";
+    import { adminNavItems } from "$lib/config/navigation";
     import { authClient } from "$lib/auth-client";
     import { Skeleton } from "$lib/components/ui/skeleton";
 
     let user = $derived(getCurrentUser());
     let loading = $derived(!getAuthLoaded());
     let balance = $derived(getCreditBalance());
+    let isAdmin = $derived(getIsAdmin());
 
     interface MenuItem {
         label: string;
@@ -168,6 +172,30 @@
             </div>
 
             <Separator class="my-4" />
+
+            {#if isAdmin}
+                <!-- Admin Section -->
+                <div class="space-y-1">
+                    <p class="px-3 pb-1 text-xs font-medium text-primary flex items-center gap-1.5">
+                        <ShieldCheck class="h-3.5 w-3.5" />
+                        管理后台
+                    </p>
+                    {#each adminNavItems as item}
+                        <button
+                            class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-muted"
+                            onclick={() => goto(item.href)}
+                        >
+                            <item.icon class="text-muted-foreground h-5 w-5 flex-shrink-0" />
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium">{item.label}</p>
+                            </div>
+                            <ChevronRight class="text-muted-foreground h-4 w-4 flex-shrink-0" />
+                        </button>
+                    {/each}
+                </div>
+
+                <Separator class="my-4" />
+            {/if}
 
             <!-- Sign Out -->
             <button
