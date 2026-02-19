@@ -2,6 +2,7 @@
     import AppSidebar from "$lib/components/layout/AppSidebar.svelte";
     import AppTopBar from "$lib/components/layout/AppTopBar.svelte";
     import BottomTabBar from "$lib/components/layout/BottomTabBar.svelte";
+    import * as Tooltip from "$lib/components/ui/tooltip";
     import { setCreditBalance } from "$lib/stores/credits.svelte";
     import { setIsAdmin } from "$lib/stores/admin.svelte";
 
@@ -13,6 +14,7 @@
     });
 </script>
 
+<Tooltip.Provider>
 <div class="flex h-screen w-full overflow-hidden">
     <!-- Desktop Sidebar -->
     <AppSidebar />
@@ -31,3 +33,4 @@
     <!-- Mobile Bottom Tab Bar -->
     <BottomTabBar />
 </div>
+</Tooltip.Provider>
