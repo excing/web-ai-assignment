@@ -7,7 +7,7 @@
  * - 被动健康检查上报
  * - 统一错误处理
  *
- * 业务 Service（ChatService、TextGenerationService 等）通过组合使用本服务。
+ * 业务 Service（ChatService、ImageGenerationService 等）通过组合使用本服务。
  */
 
 import {

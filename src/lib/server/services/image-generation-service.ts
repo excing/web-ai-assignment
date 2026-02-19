@@ -3,12 +3,12 @@ import type { UIMessage } from 'ai';
 import { BaseAIService } from './base-ai-service';
 import { createLogger } from '$lib/server/logger';
 
-const log = createLogger('text-generation-service');
+const log = createLogger('image-generation-service');
 
 /**
- * 文本生成服务配置选项
+ * 图片生成服务配置选项
  */
-export interface TextGenerationServiceOptions {
+export interface ImageGenerationServiceOptions {
 	/** AI 功能特性名称（用于获取对应的 Proxy 配置） */
 	feature?: string;
 	/** 最大输出 token 数 */
@@ -24,9 +24,9 @@ export interface TextGenerationServiceOptions {
 }
 
 /**
- * 文本生成请求参数
+ * 图片生成请求参数
  */
-export interface TextGenerationRequest {
+export interface ImageGenerationRequest {
 	/** UI 消息列表（包含 parts） */
 	messages: Array<Omit<UIMessage, 'id'>>;
 }
@@ -48,9 +48,9 @@ export interface MediaResource {
 }
 
 /**
- * 文本生成响应
+ * 图片生成响应
  */
-export interface TextGenerationResponse {
+export interface ImageGenerationResponse {
 	/** 生成的文本内容 */
 	text: string;
 	/** 完成原因 */
@@ -68,18 +68,18 @@ export interface TextGenerationResponse {
 }
 
 /**
- * 文本生成服务核心类
- * 负责处理非流式 AI 文本生成的核心业务逻辑，可在多个场景复用
+ * 图片生成服务核心类
+ * 负责处理非流式 AI 图片生成的核心业务逻辑，可在多个场景复用
  */
-export class TextGenerationService {
+export class ImageGenerationService {
 	private base: BaseAIService;
 	private maxOutputTokens: number;
 	private temperature?: number;
 	private topP?: number;
 
-	constructor(private options: TextGenerationServiceOptions = {}) {
+	constructor(private options: ImageGenerationServiceOptions = {}) {
 		this.base = new BaseAIService({
-			feature: options.feature || 'text-generation',
+			feature: options.feature || 'image-generation',
 			userId: options.userId,
 			reasoningTagName: options.reasoningTagName,
 		});
@@ -109,7 +109,7 @@ export class TextGenerationService {
 			const response = await fetch(url, {
 				signal: controller.signal,
 				headers: {
-					'User-Agent': 'Mozilla/5.0 (compatible; TextGenerationService/1.0)'
+					'User-Agent': 'Mozilla/5.0 (compatible; ImageGenerationService/1.0)'
 				}
 			});
 
@@ -315,11 +315,11 @@ export class TextGenerationService {
 	}
 
 	/**
-	 * 执行非流式文本生成
+	 * 执行非流式图片生成
 	 */
-	async generateText(
+	async generateImage(
 		modelMessages: Awaited<ReturnType<typeof convertToModelMessages>>
-	): Promise<TextGenerationResponse> {
+	): Promise<ImageGenerationResponse> {
 		const result = await this.base.executeGenerate({
 			messages: modelMessages,
 			maxOutputTokens: this.maxOutputTokens,
@@ -346,22 +346,22 @@ export class TextGenerationService {
 	}
 
 	/**
-	 * 便捷方法：处理完整的文本生成请求
+	 * 便捷方法：处理完整的图片生成请求
 	 */
-	async handleTextGenerationRequest(
-		request: TextGenerationRequest
-	): Promise<TextGenerationResponse> {
+	async handleImageGenerationRequest(
+		request: ImageGenerationRequest
+	): Promise<ImageGenerationResponse> {
 		await this.base.initialize();
 		const modelMessages = await this.convertMessages(request.messages);
-		return await this.generateText(modelMessages);
+		return await this.generateImage(modelMessages);
 	}
 }
 
 /**
- * 创建文本生成服务实例的工厂函数
+ * 创建图片生成服务实例的工厂函数
  */
-export function createTextGenerationService(
-	options?: TextGenerationServiceOptions
-): TextGenerationService {
-	return new TextGenerationService(options);
+export function createImageGenerationService(
+	options?: ImageGenerationServiceOptions
+): ImageGenerationService {
+	return new ImageGenerationService(options);
 }

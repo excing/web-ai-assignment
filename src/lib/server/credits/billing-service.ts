@@ -218,7 +218,7 @@ export class BillingService {
 		if (config.minimum != null && config.minimum > 0) {
 			return config.minimum;
 		}
-		return parseInt(env.CREDITS_TEXT_GENERATION_COST ?? '5', 10);
+		return parseInt(env.CREDITS_IMAGE_GENERATION_COST ?? '5', 10);
 	}
 
 	/**

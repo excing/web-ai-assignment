@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { createTextGenerationService } from '$lib/server/services/text-generation-service';
+import { createImageGenerationService } from '$lib/server/services/image-generation-service';
 import { parseRequestBody, validateChatMessages } from '$lib/server/services/validation';
 import { InsufficientBalanceError } from '$lib/server/credits/billing-service';
 
@@ -18,9 +18,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: messagesResult.error }, { status: 400 });
 	}
 
-	// 3. 创建文本生成服务并处理请求
-	const textGenerationService = createTextGenerationService({
-		feature: 'text-generation',
+	// 3. 创建图片生成服务并处理请求
+	const imageGenerationService = createImageGenerationService({
+		feature: 'image-generation',
 		maxOutputTokens: 4096,
 		reasoningTagName: 'think',
 		temperature: 0.7,
@@ -28,7 +28,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	});
 
 	try {
-		const result = await textGenerationService.handleTextGenerationRequest({
+		const result = await imageGenerationService.handleImageGenerationRequest({
 			messages: messagesResult.data!
 		});
 
