@@ -1,10 +1,11 @@
 <script lang="ts">
     import * as Card from "$lib/components/ui/card";
     import * as Table from "$lib/components/ui/table";
+    import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
     import { Button } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
     import { Skeleton } from "$lib/components/ui/skeleton";
-    import { LayoutTemplate, Plus, Pencil, Trash2, Pin, Image as ImageIcon } from "lucide-svelte";
+    import { LayoutTemplate, Plus, Pencil, Trash2, Pin, Image as ImageIcon, EllipsisVertical, Power, PowerOff, ChevronUp, ChevronDown, Loader2 } from "lucide-svelte";
     import { toast } from "svelte-sonner";
     import { PAGINATION } from "$lib/config/constants";
     import Pagination from "$lib/components/common/Pagination.svelte";
@@ -27,6 +28,39 @@
     let submitting = $state(false);
 
     let assignmentsLoaded = false;
+
+    // 行级操作加载状态
+    let operatingIds = $state(new Set<string>());
+
+    function isOperating(id: string) {
+        return operatingIds.has(id);
+    }
+
+    function startOp(id: string) {
+        operatingIds = new Set([...operatingIds, id]);
+    }
+
+    function endOp(id: string) {
+        const next = new Set(operatingIds);
+        next.delete(id);
+        operatingIds = next;
+    }
+
+    /** 本地排序，与服务端保持一致: isPinned DESC, sortOrder DESC, createdAt DESC */
+    function sortTemplates(list: ImageGenTemplate[]): ImageGenTemplate[] {
+        return [...list].sort((a, b) => {
+            if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+            if (a.sortOrder !== b.sortOrder) return b.sortOrder - a.sortOrder;
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+    }
+
+    /** 根据 assignmentId 解析关联的名称和 featureKey */
+    function resolveAssignment(assignmentId: string | null) {
+        if (!assignmentId) return { assignmentName: undefined, featureKey: undefined };
+        const a = assignments.find(x => x.id === assignmentId);
+        return { assignmentName: a?.name, featureKey: a?.featureKey };
+    }
 
     async function loadTemplates() {
         loading = true;
@@ -78,7 +112,8 @@
         submitting = true;
         try {
             if (editing) {
-                const res = await fetch(`/api/admin/templates/${editing.id}`, {
+                const editId = editing.id;
+                const res = await fetch(`/api/admin/templates/${editId}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(data),
@@ -88,10 +123,15 @@
                     toast.error(result.error || "更新失败");
                     return;
                 }
-                // 静默重新加载以获取关联信息
-                await loadTemplates();
+                // 请求成功后本地更新
+                const resolved = resolveAssignment(data.assignmentId);
+                templates = sortTemplates(
+                    templates.map(t => t.id === editId ? { ...t, ...data, ...resolved } : t)
+                );
+                dialogOpen = false;
                 toast.success("模板已更新");
             } else {
+                // 创建：等待服务端返回后本地插入
                 const res = await fetch("/api/admin/templates", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -102,14 +142,17 @@
                     toast.error(result.error || "创建失败");
                     return;
                 }
-                if (page === 1) {
-                    await loadTemplates();
-                } else {
-                    page = 1;
+                const resolved = resolveAssignment(data.assignmentId);
+                const newTpl: ImageGenTemplate = { ...result.template, ...resolved };
+                templates = sortTemplates([newTpl, ...templates]);
+                total++;
+                // 新分类加入补全列表
+                if (data.category && !categories.includes(data.category)) {
+                    categories = [...categories, data.category].sort();
                 }
+                dialogOpen = false;
                 toast.success("模板已创建");
             }
-            dialogOpen = false;
         } catch {
             toast.error("网络错误，请重试");
         } finally {
@@ -119,42 +162,82 @@
 
     async function deleteTemplate(id: string) {
         if (!confirm("确定要删除这个模板吗？")) return;
+        // 乐观更新
+        const prev = templates;
+        const prevTotal = total;
+        templates = templates.filter(t => t.id !== id);
+        total--;
+        startOp(id);
         try {
             const res = await fetch(`/api/admin/templates/${id}`, { method: "DELETE" });
-            if (res.ok) {
-                templates = templates.filter(t => t.id !== id);
-                total--;
-                toast.success("模板已删除");
-            } else {
+            if (!res.ok) {
+                templates = prev;
+                total = prevTotal;
                 const data = await res.json();
                 toast.error(data.error || "删除失败");
+            } else {
+                toast.success("模板已删除");
             }
         } catch {
+            templates = prev;
+            total = prevTotal;
             toast.error("网络错误，请重试");
+        } finally {
+            endOp(id);
         }
     }
 
     async function toggleField(tpl: ImageGenTemplate, field: "isActive" | "isPinned") {
         const newValue = !tpl[field];
+        // 乐观更新 + 重新排序
+        const prev = templates;
+        templates = sortTemplates(
+            templates.map(t => t.id === tpl.id ? { ...t, [field]: newValue } : t)
+        );
+        startOp(tpl.id);
         try {
             const res = await fetch(`/api/admin/templates/${tpl.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ [field]: newValue }),
             });
-            const data = await res.json();
             if (!res.ok) {
+                templates = prev;
+                const data = await res.json();
                 toast.error(data.error || "操作失败");
-                return;
-            }
-            templates = templates.map(t => t.id === tpl.id ? { ...t, [field]: newValue } : t);
-            if (field === "isActive") {
-                toast.success(newValue ? "模板已启用" : "模板已停用");
-            } else {
-                toast.success(newValue ? "模板已置顶" : "模板已取消置顶");
             }
         } catch {
+            templates = prev;
             toast.error("网络错误，请重试");
+        } finally {
+            endOp(tpl.id);
+        }
+    }
+
+    async function moveSortOrder(tpl: ImageGenTemplate, delta: number) {
+        const newOrder = tpl.sortOrder + delta;
+        // 乐观更新 + 重新排序
+        const prev = templates;
+        templates = sortTemplates(
+            templates.map(t => t.id === tpl.id ? { ...t, sortOrder: newOrder } : t)
+        );
+        startOp(tpl.id);
+        try {
+            const res = await fetch(`/api/admin/templates/${tpl.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sortOrder: newOrder }),
+            });
+            if (!res.ok) {
+                templates = prev;
+                const data = await res.json();
+                toast.error(data.error || "操作失败");
+            }
+        } catch {
+            templates = prev;
+            toast.error("网络错误，请重试");
+        } finally {
+            endOp(tpl.id);
         }
     }
 
@@ -234,7 +317,8 @@
                     </Table.Header>
                     <Table.Body>
                         {#each templates as tpl (tpl.id)}
-                            <Table.Row class={tpl.isActive ? "" : "opacity-60"}>
+                            {@const busy = isOperating(tpl.id)}
+                            <Table.Row class="{tpl.isActive ? '' : 'opacity-60'} {busy ? 'opacity-50' : ''}">
                                 <Table.Cell>
                                     {#if tpl.previewImageUrl}
                                         <img
@@ -287,18 +371,48 @@
                                 </Table.Cell>
                                 <Table.Cell class="text-right">
                                     <div class="flex items-center justify-end gap-1">
-                                        <Button variant="ghost" size="sm" class="h-7 w-7 p-0" onclick={() => toggleField(tpl, "isPinned")} title={tpl.isPinned ? "取消置顶" : "置顶"}>
+                                        <Button variant="ghost" size="sm" class="h-7 w-7 p-0" onclick={() => moveSortOrder(tpl, 1)} title="上升" disabled={busy}>
+                                            <ChevronUp class="h-3 w-3" />
+                                        </Button>
+                                        <Button variant="ghost" size="sm" class="h-7 w-7 p-0" onclick={() => moveSortOrder(tpl, -1)} title="下降" disabled={busy}>
+                                            <ChevronDown class="h-3 w-3" />
+                                        </Button>
+                                        <Button variant="ghost" size="sm" class="h-7 w-7 p-0" onclick={() => toggleField(tpl, "isPinned")} title={tpl.isPinned ? "取消置顶" : "置顶"} disabled={busy}>
                                             <Pin class="h-3 w-3 {tpl.isPinned ? 'text-orange-500' : ''}" />
                                         </Button>
-                                        <Button variant="outline" size="sm" onclick={() => openEditDialog(tpl)}>
-                                            <Pencil class="h-3 w-3" />
-                                        </Button>
-                                        <Button variant="outline" size="sm" onclick={() => toggleField(tpl, "isActive")}>
-                                            {tpl.isActive ? "停用" : "启用"}
-                                        </Button>
-                                        <Button variant="outline" size="sm" onclick={() => deleteTemplate(tpl.id)}>
-                                            <Trash2 class="h-3 w-3" />
-                                        </Button>
+                                        <DropdownMenu.Root>
+                                            <DropdownMenu.Trigger>
+                                                {#snippet child({ props })}
+                                                    <Button variant="ghost" size="sm" class="h-7 w-7 p-0" {...props} disabled={busy}>
+                                                        {#if busy}
+                                                            <Loader2 class="h-4 w-4 animate-spin" />
+                                                        {:else}
+                                                            <EllipsisVertical class="h-4 w-4" />
+                                                        {/if}
+                                                    </Button>
+                                                {/snippet}
+                                            </DropdownMenu.Trigger>
+                                            <DropdownMenu.Content align="end">
+                                                <DropdownMenu.Item onclick={() => openEditDialog(tpl)}>
+                                                    <Pencil class="mr-2 h-4 w-4" />
+                                                    编辑
+                                                </DropdownMenu.Item>
+                                                <DropdownMenu.Item onclick={() => toggleField(tpl, "isActive")}>
+                                                    {#if tpl.isActive}
+                                                        <PowerOff class="mr-2 h-4 w-4" />
+                                                        停用
+                                                    {:else}
+                                                        <Power class="mr-2 h-4 w-4" />
+                                                        启用
+                                                    {/if}
+                                                </DropdownMenu.Item>
+                                                <DropdownMenu.Separator />
+                                                <DropdownMenu.Item class="text-destructive" onclick={() => deleteTemplate(tpl.id)}>
+                                                    <Trash2 class="mr-2 h-4 w-4" />
+                                                    删除
+                                                </DropdownMenu.Item>
+                                            </DropdownMenu.Content>
+                                        </DropdownMenu.Root>
                                     </div>
                                 </Table.Cell>
                             </Table.Row>
