@@ -118,41 +118,6 @@
 		</div>
 	</div>
 
-	<!-- 统计卡片 -->
-	<div class="grid gap-4 md:grid-cols-2">
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Proxy 节点</Card.Title>
-				<Server class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				{#if aiProxyProxiesStore.proxies.loading}
-					<Skeleton class="h-8 w-16 mb-1" />
-					<Skeleton class="h-3 w-24" />
-				{:else}
-					<div class="text-2xl font-bold">{aiProxyProxiesStore.proxies.total}</div>
-					<p class="text-xs text-muted-foreground">已配置的代理节点数量</p>
-				{/if}
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">功能绑定</Card.Title>
-				<Link class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				{#if aiProxyAssignmentsStore.assignments.loading}
-					<Skeleton class="h-8 w-16 mb-1" />
-					<Skeleton class="h-3 w-20" />
-				{:else}
-					<div class="text-2xl font-bold">{aiProxyAssignmentsStore.assignments.total}</div>
-					<p class="text-xs text-muted-foreground">功能与 Proxy 的绑定关系</p>
-				{/if}
-			</Card.Content>
-		</Card.Root>
-	</div>
-
 	<!-- 主内容区 -->
 	<Card.Root>
 		<Card.Header>
