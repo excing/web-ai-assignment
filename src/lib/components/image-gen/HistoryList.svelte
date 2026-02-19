@@ -41,6 +41,17 @@
 			filename: `参考图 ${idx + 1}`,
 		}));
 	}
+
+	/** Merge input reference images + output images into a single gallery array */
+	function mergedGallery(task: GenerationTask): MediaResource[] {
+		const inputs = task.attachedPreviews ? previewsToMediaResources(task.attachedPreviews) : [];
+		return [...inputs, ...task.mediaResources];
+	}
+
+	/** Get the offset for output images (= number of input images) */
+	function inputCount(task: GenerationTask): number {
+		return task.attachedPreviews?.length ?? 0;
+	}
 </script>
 
 {#if tasks.length === 0}
@@ -161,7 +172,7 @@
 							{#if task.mediaResources.length === 1}
 								{@const resource = task.mediaResources[0]}
 								<Card.Root class="gap-0 overflow-hidden rounded-2xl border-border/40 p-0 shadow-none">
-									<button class="block w-full" onclick={() => onOpenGallery(task.mediaResources, 0)}>
+									<button class="block w-full" onclick={() => onOpenGallery(mergedGallery(task), inputCount(task))}>
 										{#if resource.type === 'image'}
 											<img
 												src={resource.data}
@@ -210,7 +221,7 @@
 								<div class="grid grid-cols-2 gap-1.5 sm:gap-2">
 									{#each task.mediaResources as resource, index}
 										<div class="group/img relative overflow-hidden rounded-xl border border-border/30 bg-card {task.mediaResources.length === 3 && index === 0 ? 'row-span-2' : ''}">
-											<button class="block h-full w-full" onclick={() => onOpenGallery(task.mediaResources, index)}>
+											<button class="block h-full w-full" onclick={() => onOpenGallery(mergedGallery(task), inputCount(task) + index)}>
 												{#if resource.type === 'image'}
 													<img
 														src={resource.data}
@@ -253,7 +264,7 @@
 									<div class="flex flex-shrink-0 gap-1">
 										{#each task.attachedPreviews as preview, i}
 											<button
-												onclick={() => onOpenGallery(previewsToMediaResources(task.attachedPreviews || []), i)}
+												onclick={() => onOpenGallery(mergedGallery(task), i)}
 												class="overflow-hidden rounded-md border border-border/50 transition-opacity hover:opacity-80"
 											>
 												<img src={preview} alt="参考图 {i + 1}" class="h-6 w-6 object-cover" />

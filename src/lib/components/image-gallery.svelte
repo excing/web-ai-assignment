@@ -42,6 +42,7 @@
 
 	let isZoomed = $derived(scale !== 1);
 	let scalePercent = $derived(Math.round(scale * 100));
+	let isReferenceImage = $derived(currentImage?.filename?.startsWith('参考图'));
 
 	function resetTransform() {
 		scale = 1;
@@ -225,12 +226,17 @@
 >
 	<!-- ── 顶部工具栏 ── -->
 	<div class="relative z-10 flex items-center justify-between px-4 py-3">
-		<!-- 左侧：图片计数 -->
-		<div class="min-w-[80px]">
+		<!-- 左侧：图片计数 + 标签 -->
+		<div class="flex min-w-[80px] items-center gap-2">
 			{#if images.length > 1}
 				<span class="text-sm tabular-nums text-white/70">
 					{currentIndex + 1} / {images.length}
 				</span>
+			{/if}
+			{#if isReferenceImage}
+				<span class="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-300">参考图</span>
+			{:else}
+				<span class="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">生成图</span>
 			{/if}
 		</div>
 
@@ -345,8 +351,9 @@
 		<div class="flex justify-center px-4 py-3">
 			<div class="flex gap-2 overflow-x-auto rounded-xl bg-white/5 p-2 backdrop-blur-sm">
 				{#each images as image, index}
+					{@const isRef = image.filename?.startsWith('参考图')}
 					<button
-						class="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all {index === currentIndex
+						class="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all {index === currentIndex
 							? 'border-white shadow-lg shadow-white/10'
 							: 'border-transparent opacity-50 hover:opacity-80'}"
 						onclick={(e) => {
@@ -361,6 +368,9 @@
 								alt={`缩略图 ${index + 1}`}
 								class="h-full w-full object-cover"
 							/>
+						{/if}
+						{#if isRef}
+							<span class="absolute bottom-0 left-0 right-0 bg-amber-500/70 text-center text-[8px] leading-[14px] text-white">参考</span>
 						{/if}
 					</button>
 				{/each}
