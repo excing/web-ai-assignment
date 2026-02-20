@@ -5,12 +5,13 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import {
 		Loader2,
-		ImageIcon,
 		Download,
 		Trash2,
 		RefreshCw,
 		X,
 		Clock,
+		Music,
+		FileIcon,
 	} from 'lucide-svelte';
 	import { taskManager, type GenerationTask, type MediaResource } from '$lib/stores/task-manager.svelte';
 
@@ -51,6 +52,12 @@
 	/** Get the offset for output images (= number of input images) */
 	function inputCount(task: GenerationTask): number {
 		return task.attachedPreviews?.length ?? 0;
+	}
+
+	/** Grid column class based on total count */
+	function gridCols(count: number): string {
+		if (count === 1) return 'grid-cols-1';
+		return 'grid-cols-2';
 	}
 </script>
 
@@ -167,75 +174,21 @@
 							</div>
 						</Card.Root>
 					{:else if task.mediaResources.length > 0}
-						<!-- Success card -->
+						<!-- Success card (unified layout) -->
 						<div class="group">
-							{#if task.mediaResources.length === 1}
-								{@const resource = task.mediaResources[0]}
-								<Card.Root class="gap-0 overflow-hidden rounded-2xl border-border/40 p-0 shadow-none">
-									<button class="block w-full" onclick={() => onOpenGallery(mergedGallery(task), inputCount(task))}>
-										{#if resource.type === 'image'}
-											<img
-												src={resource.data}
-												alt={resource.filename || '生成的图片'}
-												class="w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-												style="max-height: 500px;"
-											/>
-										{:else if resource.type === 'video'}
-											<video src={resource.data} class="w-full object-cover" style="max-height: 500px;"><track kind="captions" /></video>
-										{/if}
-									</button>
-									<div class="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-end bg-gradient-to-t from-black/60 via-black/20 to-transparent p-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-										<div class="pointer-events-auto flex items-center gap-1.5">
-											<Tooltip.Root>
-												<Tooltip.Trigger>
-													{#snippet child({ props })}
-														<button
-															{...props}
-															class="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/30"
-															onclick={(e) => { e.stopPropagation(); onDownloadImage(resource.data, resource.filename || 'image.png', 0); }}
-														>
-															<Download class="h-3.5 w-3.5" />
-														</button>
-													{/snippet}
-												</Tooltip.Trigger>
-												<Tooltip.Content>下载</Tooltip.Content>
-											</Tooltip.Root>
-											<Tooltip.Root>
-												<Tooltip.Trigger>
-													{#snippet child({ props })}
-														<button
-															{...props}
-															class="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-red-500/60"
-															onclick={(e) => { e.stopPropagation(); taskManager.deleteTask(task.id); }}
-														>
-															<Trash2 class="h-3.5 w-3.5" />
-														</button>
-													{/snippet}
-												</Tooltip.Trigger>
-												<Tooltip.Content>删除</Tooltip.Content>
-											</Tooltip.Root>
-										</div>
-									</div>
-								</Card.Root>
-							{:else}
-								<div class="grid grid-cols-2 gap-1.5 sm:gap-2">
-									{#each task.mediaResources as resource, index}
-										<div class="group/img relative overflow-hidden rounded-xl border border-border/30 bg-card {task.mediaResources.length === 3 && index === 0 ? 'row-span-2' : ''}">
+							<div class="grid {gridCols(task.mediaResources.length)} gap-1.5 sm:gap-2">
+								{#each task.mediaResources as resource, index}
+									{#if resource.type === 'image'}
+										<div class="group/item relative overflow-hidden rounded-xl border border-border/30 bg-card {task.mediaResources.length === 3 && index === 0 ? 'row-span-2' : ''}">
 											<button class="block h-full w-full" onclick={() => onOpenGallery(mergedGallery(task), inputCount(task) + index)}>
-												{#if resource.type === 'image'}
-													<img
-														src={resource.data}
-														alt={resource.filename || `生成的图片 ${index + 1}`}
-														class="h-full w-full object-cover transition-transform duration-500 group-hover/img:scale-105"
-														style="aspect-ratio: {task.mediaResources.length === 3 && index === 0 ? '1/2' : '1/1'}; min-height: 120px;"
-													/>
-												{:else if resource.type === 'video'}
-													<video src={resource.data} class="h-full w-full object-cover"><track kind="captions" /></video>
-												{:else}
-													<div class="flex aspect-square items-center justify-center"><ImageIcon class="h-8 w-8 text-muted-foreground" /></div>
-												{/if}
+												<img
+													src={resource.data}
+													alt={resource.filename || `生成的图片 ${index + 1}`}
+													class="h-full w-full object-cover transition-transform duration-500 group-hover/item:scale-105"
+													style="aspect-ratio: {task.mediaResources.length === 3 && index === 0 ? '1/2' : task.mediaResources.length === 1 ? 'auto' : '1/1'}; {task.mediaResources.length === 1 ? 'max-height: 500px;' : 'min-height: 120px;'}"
+												/>
 											</button>
-											<div class="pointer-events-none absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/40 to-transparent opacity-0 transition-opacity duration-200 group-hover/img:opacity-100">
+											<div class="pointer-events-none absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/40 to-transparent opacity-0 transition-opacity duration-200 group-hover/item:opacity-100">
 												<div class="pointer-events-auto p-2">
 													<Tooltip.Root>
 														<Tooltip.Trigger>
@@ -254,9 +207,42 @@
 												</div>
 											</div>
 										</div>
-									{/each}
-								</div>
-							{/if}
+									{:else if resource.type === 'video'}
+										<div class="group/item relative overflow-hidden rounded-xl border border-border/30 bg-card {task.mediaResources.length === 3 && index === 0 ? 'row-span-2' : ''}">
+											<video src={resource.data} class="h-full w-full object-cover" style="aspect-ratio: {task.mediaResources.length === 1 ? 'auto' : '1/1'}; {task.mediaResources.length === 1 ? 'max-height: 500px;' : 'min-height: 120px;'}">
+												<track kind="captions" />
+											</video>
+										</div>
+									{:else if resource.type === 'audio'}
+										<div class="col-span-full flex items-center gap-3 rounded-xl border border-border/30 bg-card px-3 py-2.5">
+											<audio src={resource.data} controls class="mt-1 h-8 w-full" preload="metadata">
+												<track kind="captions" />
+											</audio>
+										</div>
+									{:else}
+										<div class="col-span-full flex items-center gap-3 rounded-xl border border-border/30 bg-card px-3 py-2.5">
+											<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
+												<FileIcon class="h-4 w-4 text-muted-foreground" />
+											</div>
+											<p class="min-w-0 flex-1 truncate text-xs text-muted-foreground">{resource.filename || `文件 ${index + 1}`}</p>
+											<Tooltip.Root>
+												<Tooltip.Trigger>
+													{#snippet child({ props })}
+														<button
+															{...props}
+															class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+															onclick={() => onDownloadImage(resource.data, resource.filename || `file-${index + 1}`, index)}
+														>
+															<Download class="h-3.5 w-3.5" />
+														</button>
+													{/snippet}
+												</Tooltip.Trigger>
+												<Tooltip.Content>下载</Tooltip.Content>
+											</Tooltip.Root>
+										</div>
+									{/if}
+								{/each}
+							</div>
 
 							<!-- Bottom meta info -->
 							<div class="mt-1.5 flex items-center gap-2 px-1">
@@ -276,9 +262,7 @@
 								<span class="flex-shrink-0 text-xs text-muted-foreground/40">
 									{new Date(task.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 								</span>
-								{#if task.mediaResources.length > 1}
-									<Button variant="link" size="sm" class="h-auto flex-shrink-0 p-0 text-xs text-muted-foreground/40 no-underline hover:text-destructive hover:underline" onclick={() => taskManager.deleteTask(task.id)}>删除</Button>
-								{/if}
+								<Button variant="link" size="sm" class="h-auto flex-shrink-0 p-0 text-xs text-muted-foreground/40 no-underline hover:text-destructive hover:underline" onclick={() => taskManager.deleteTask(task.id)}>删除</Button>
 							</div>
 						</div>
 					{/if}
