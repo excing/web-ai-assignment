@@ -123,9 +123,9 @@ export class ImageGenerationService {
 			// 获取 MIME 类型
 			const mimeType = response.headers.get('content-type') || 'application/octet-stream';
 
-			// 检查文件大小（限制 10MB）
+			// 检查文件大小（限制 20MB）
 			const contentLength = response.headers.get('content-length');
-			if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
+			if (contentLength && parseInt(contentLength) > 20 * 1024 * 1024) {
 				log.error(`资源过大: ${url}`, undefined, { size: contentLength });
 				return null;
 			}
@@ -158,58 +158,46 @@ export class ImageGenerationService {
 		// 1. 提取生成的文件（来自 AI SDK）
 		if (files && files.length > 0) {
 			for (const file of files) {
+				log.info(`file: ${file.mediaType}`);
 				resources.push({
 					type: this.getMediaType(file.mediaType),
 					data: `data:${file.mediaType};base64,${file.base64}`,
 					mimeType: file.mediaType,
 					filename: "generated-image",
-					isBase64: !(!file.base64) // 等价于 !!file.base64
+					isBase64: true
 				});
 			}
 		}
 
+		if (resources.length > 0) return resources;
+
 		// 2. 从 content 中提取多媒体内容
-		// if (content && content.length > 0) {
-		// 	for (const part of content) {
-		// 		if (part.type === 'file') {
-		// 			resources.push({
-		// 				type: part.type,
-		// 				data: `data:${part.file.mediaType};base64,${part.file.base64}`,
-		// 				mimeType: part.file.mediaType,
-		// 				filename: "generated-image",
-		// 				isBase64: !!part.file.base64
-		// 			});
-		// 		}
-		// 	}
-		// }
-
-		// 3. 使用正则提取文本中的 URL 链接
-		const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+\.(jpg|jpeg|png|gif|webp|mp4|webm|mp3|wav|pdf|doc|docx)/gi;
-		const urls = text.match(urlRegex);
-		if (urls) {
-			const downloadPromises = urls.map(async (url) => {
-				const result = await this.downloadAndConvertToBase64(url);
-				if (result) {
-					const ext = url.split('.').pop()?.toLowerCase();
-					return {
-						type: this.getMediaTypeFromExtension(ext || ''),
-						data: result.data,
-						mimeType: result.mimeType,
+		if (content && content.length > 0) {
+			for (const part of content) {
+				log.info(`content part: ${part.type}`);
+				if (part.type === 'file') {
+					resources.push({
+						type: part.type,
+						data: `data:${part.file.mediaType};base64,${part.file.base64}`,
+						mimeType: part.file.mediaType,
+						filename: "generated-image",
 						isBase64: true
-					} as MediaResource;
+					});
 				}
-				return null;
-			});
-
-			const downloadedResources = await Promise.all(downloadPromises);
-			resources.push(...downloadedResources.filter((r): r is MediaResource => r !== null));
+			}
 		}
 
-		// 4. 提取 Base64 编码的图片（data:image/...;base64,...）
+		if (resources.length > 0) return resources;
+
+		// 收集所有需要下载的 URL 及其元数据，最后统一去重下载
+		const pendingDownloads: Array<{ url: string; filename?: string }> = [];
+
+		// 3. 提取 Base64 编码的图片（data:image/...;base64,...）
 		const base64Regex = /data:(image|video|audio)\/([a-zA-Z0-9+.-]+);base64,([A-Za-z0-9+/=]+)/g;
 		let match;
 		while ((match = base64Regex.exec(text)) !== null) {
 			const [fullMatch, mediaType, format] = match;
+			log.info(`found base64 ${mediaType}`);
 			resources.push({
 				type: mediaType as 'image' | 'video' | 'audio',
 				data: fullMatch,
@@ -218,72 +206,64 @@ export class ImageGenerationService {
 			});
 		}
 
-		// 5. 提取 Markdown 图片语法中的 URL
+		// 4. 提取 Markdown 图片语法中的 URL
 		const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-		const markdownUrls: Array<{ alt: string; url: string }> = [];
 		while ((match = markdownImageRegex.exec(text)) !== null) {
 			const [, alt, url] = match;
 			if (url && !url.startsWith('data:')) {
-				markdownUrls.push({ alt, url });
+				pendingDownloads.push({ url, filename: alt || undefined });
 			}
 		}
 
-		if (markdownUrls.length > 0) {
-			const downloadPromises = markdownUrls.map(async ({ alt, url }) => {
-				const result = await this.downloadAndConvertToBase64(url);
-				if (result) {
-					return {
-						type: 'image' as const,
-						data: result.data,
-						mimeType: result.mimeType,
-						filename: alt || undefined,
-						isBase64: true
-					} as MediaResource;
-				}
-				return null;
-			});
-
-			const downloadedResources = await Promise.all(downloadPromises);
-			resources.push(...downloadedResources.filter((r): r is MediaResource => r !== null));
-		}
-
-		// 6. 提取 HTML 标签中的媒体资源（<img>, <video>, <audio>）
+		// 5. 提取 HTML 标签中的媒体资源（<img>, <video>, <audio>）
 		const htmlMediaRegex = /<(img|video|audio|source)[^>]+src=["']([^"']+)["'][^>]*>/gi;
-		const htmlMediaUrls: Array<{ tag: string; url: string; alt?: string }> = [];
 		while ((match = htmlMediaRegex.exec(text)) !== null) {
-			const [fullMatch, tag, url] = match;
+			const [fullMatch, , url] = match;
 			if (url && !url.startsWith('data:')) {
 				const altMatch = fullMatch.match(/(?:alt|title)=["']([^"']+)["']/i);
-				htmlMediaUrls.push({
-					tag: tag.toLowerCase(),
-					url,
-					alt: altMatch?.[1]
-				});
+				pendingDownloads.push({ url, filename: altMatch?.[1] });
 			}
 		}
 
-		if (htmlMediaUrls.length > 0) {
-			const downloadPromises = htmlMediaUrls.map(async ({ tag, url, alt }) => {
-				const result = await this.downloadAndConvertToBase64(url);
-				if (result) {
-					let type: MediaResource['type'] = 'file';
-					if (tag === 'img') type = 'image';
-					else if (tag === 'video' || tag === 'source') type = 'video';
-					else if (tag === 'audio') type = 'audio';
+		// 6. 使用正则提取文本中的 URL 链接
+		const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+\.(jpg|jpeg|png|gif|webp|mp4|webm|mp3|wav|pdf|doc|docx)/gi;
+		const urls = text.match(urlRegex);
+		if (urls) {
+			for (const url of urls) {
+				pendingDownloads.push({ url });
+			}
+		}
 
-					return {
-						type,
-						data: result.data,
-						mimeType: result.mimeType,
-						filename: alt || undefined,
-						isBase64: true
-					} as MediaResource;
+		// 统一去重下载：相同 URL 只下载一次，type 由响应 mimeType 决定
+		if (pendingDownloads.length > 0) {
+			// 去重 URL，保留第一次出现的 filename
+			const urlMap = new Map<string, string | undefined>();
+			for (const d of pendingDownloads) {
+				if (!urlMap.has(d.url)) {
+					urlMap.set(d.url, d.filename);
 				}
-				return null;
-			});
+			}
 
-			const downloadedResources = await Promise.all(downloadPromises);
-			resources.push(...downloadedResources.filter((r): r is MediaResource => r !== null));
+			log.info(`downloading ${urlMap.size} unique URLs (from ${pendingDownloads.length} references)`);
+
+			const downloadResults = await Promise.all(
+				[...urlMap.entries()].map(async ([url, filename]) => {
+					log.info(`downloading: ${url}`);
+					const result = await this.downloadAndConvertToBase64(url);
+					if (result) {
+						return {
+							type: this.getMediaType(result.mimeType),
+							data: result.data,
+							mimeType: result.mimeType,
+							filename,
+							isBase64: true
+						} as MediaResource;
+					}
+					return null;
+				})
+			);
+
+			resources.push(...downloadResults.filter((r): r is MediaResource => r !== null));
 		}
 
 		return resources;
@@ -297,20 +277,6 @@ export class ImageGenerationService {
 		if (mimeType.startsWith('image/')) return 'image';
 		if (mimeType.startsWith('video/')) return 'video';
 		if (mimeType.startsWith('audio/')) return 'audio';
-		return 'file';
-	}
-
-	/**
-	 * 根据文件扩展名判断媒体类型
-	 */
-	private getMediaTypeFromExtension(ext: string): MediaResource['type'] {
-		const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'];
-		const videoExts = ['mp4', 'webm', 'avi', 'mov', 'mkv'];
-		const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'm4a'];
-
-		if (imageExts.includes(ext)) return 'image';
-		if (videoExts.includes(ext)) return 'video';
-		if (audioExts.includes(ext)) return 'audio';
 		return 'file';
 	}
 
