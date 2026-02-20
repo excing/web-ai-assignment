@@ -2,6 +2,7 @@ import { convertToModelMessages } from 'ai';
 import type { ContentPart, GeneratedFile, ToolSet, UIMessage } from 'ai';
 import { BaseAIService } from './base-ai-service';
 import { createLogger } from '$lib/server/logger';
+import { uploadMediaToR2 } from '$lib/server/upload-media';
 
 const log = createLogger('image-generation-service');
 
@@ -96,9 +97,9 @@ export class ImageGenerationService {
 	}
 
 	/**
-	 * 下载 HTTP 资源并转换为 Base64
+	 * 下载 HTTP 资源并上传到 R2，返回 public URL
 	 */
-	private async downloadAndConvertToBase64(
+	private async downloadAndUploadToR2(
 		url: string,
 		timeout = 10000
 	): Promise<{ data: string; mimeType: string } | null> {
@@ -120,7 +121,6 @@ export class ImageGenerationService {
 				return null;
 			}
 
-			// 获取 MIME 类型
 			const mimeType = response.headers.get('content-type') || 'application/octet-stream';
 
 			// 检查文件大小（限制 20MB）
@@ -130,15 +130,12 @@ export class ImageGenerationService {
 				return null;
 			}
 
-			// 下载到内存
 			const arrayBuffer = await response.arrayBuffer();
 			const buffer = Buffer.from(arrayBuffer);
 
-			// 转换为 Base64
-			const base64 = buffer.toString('base64');
-			const dataUrl = `data:${mimeType};base64,${base64}`;
-
-			return { data: dataUrl, mimeType };
+			// 上传到 R2
+			const publicUrl = await uploadMediaToR2(buffer, mimeType);
+			return { data: publicUrl, mimeType };
 		} catch (error) {
 			if (error instanceof Error && error.name === 'AbortError') {
 				log.error(`下载资源超时: ${url}`);
@@ -150,39 +147,49 @@ export class ImageGenerationService {
 	}
 
 	/**
-	 * 提取文本中的多媒体资源
+	 * 提取文本中的多媒体资源，全部上传到 R2 返回 HTTP URL
 	 */
 	private async extractMediaResources(text: string, files: Array<GeneratedFile>, content: Array<ContentPart<ToolSet>>): Promise<MediaResource[]> {
 		const resources: MediaResource[] = [];
 
-		// 1. 提取生成的文件（来自 AI SDK）
+		// 1. 提取生成的文件（来自 AI SDK）→ 上传 R2
 		if (files && files.length > 0) {
 			for (const file of files) {
 				log.info(`file: ${file.mediaType}`);
-				resources.push({
-					type: this.getMediaType(file.mediaType),
-					data: `data:${file.mediaType};base64,${file.base64}`,
-					mimeType: file.mediaType,
-					filename: "generated-image",
-					isBase64: true
-				});
+				try {
+					const buffer = Buffer.from(file.base64, 'base64');
+					const url = await uploadMediaToR2(buffer, file.mediaType);
+					resources.push({
+						type: this.getMediaType(file.mediaType),
+						data: url,
+						mimeType: file.mediaType,
+						filename: 'generated-image',
+					});
+				} catch (err) {
+					log.error('R2 upload failed for generated file', err instanceof Error ? err : undefined);
+				}
 			}
 		}
 
 		if (resources.length > 0) return resources;
 
-		// 2. 从 content 中提取多媒体内容
+		// 2. 从 content 中提取多媒体内容 → 上传 R2
 		if (content && content.length > 0) {
 			for (const part of content) {
 				log.info(`content part: ${part.type}`);
 				if (part.type === 'file') {
-					resources.push({
-						type: part.type,
-						data: `data:${part.file.mediaType};base64,${part.file.base64}`,
-						mimeType: part.file.mediaType,
-						filename: "generated-image",
-						isBase64: true
-					});
+					try {
+						const buffer = Buffer.from(part.file.base64, 'base64');
+						const url = await uploadMediaToR2(buffer, part.file.mediaType);
+						resources.push({
+							type: this.getMediaType(part.file.mediaType),
+							data: url,
+							mimeType: part.file.mediaType,
+							filename: 'generated-image',
+						});
+					} catch (err) {
+						log.error('R2 upload failed for content part', err instanceof Error ? err : undefined);
+					}
 				}
 			}
 		}
@@ -192,18 +199,24 @@ export class ImageGenerationService {
 		// 收集所有需要下载的 URL 及其元数据，最后统一去重下载
 		const pendingDownloads: Array<{ url: string; filename?: string }> = [];
 
-		// 3. 提取 Base64 编码的图片（data:image/...;base64,...）
+		// 3. 提取 Base64 编码的媒体（data:image/...;base64,...）→ 上传 R2
 		const base64Regex = /data:(image|video|audio)\/([a-zA-Z0-9+.-]+);base64,([A-Za-z0-9+/=]+)/g;
 		let match;
 		while ((match = base64Regex.exec(text)) !== null) {
-			const [fullMatch, mediaType, format] = match;
+			const [, mediaType, format, b64] = match;
+			const mimeType = `${mediaType}/${format}`;
 			log.info(`found base64 ${mediaType}`);
-			resources.push({
-				type: mediaType as 'image' | 'video' | 'audio',
-				data: fullMatch,
-				mimeType: `${mediaType}/${format}`,
-				isBase64: true
-			});
+			try {
+				const buffer = Buffer.from(b64, 'base64');
+				const url = await uploadMediaToR2(buffer, mimeType);
+				resources.push({
+					type: mediaType as 'image' | 'video' | 'audio',
+					data: url,
+					mimeType,
+				});
+			} catch (err) {
+				log.error('R2 upload failed for inline base64', err instanceof Error ? err : undefined);
+			}
 		}
 
 		// 4. 提取 Markdown 图片语法中的 URL
@@ -249,14 +262,13 @@ export class ImageGenerationService {
 			const downloadResults = await Promise.all(
 				[...urlMap.entries()].map(async ([url, filename]) => {
 					log.info(`downloading: ${url}`);
-					const result = await this.downloadAndConvertToBase64(url);
+					const result = await this.downloadAndUploadToR2(url);
 					if (result) {
 						return {
 							type: this.getMediaType(result.mimeType),
 							data: result.data,
 							mimeType: result.mimeType,
 							filename,
-							isBase64: true
 						} as MediaResource;
 					}
 					return null;
