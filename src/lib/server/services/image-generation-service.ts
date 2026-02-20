@@ -295,7 +295,7 @@ export class ImageGenerationService {
 		});
 
 		return {
-			text: result.text,
+			text: result.text.replace(/data:(?:image|video|audio)\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]+/g, '[Base64 File]'), // 替换 Base64 编码的多媒体资源, mediaResources 里已有相同的数据
 			finishReason: result.finishReason,
 			usage: {
 				promptTokens: result.usage.inputTokens || 0,
