@@ -61,6 +61,25 @@
 	}
 </script>
 
+{#snippet downloadBtn(data: string, filename: string, index: number, variant: 'overlay' | 'inline')}
+	<Tooltip.Root>
+		<Tooltip.Trigger>
+			{#snippet child({ props })}
+				<button
+					{...props}
+					class="flex items-center justify-center rounded-full transition-colors {variant === 'overlay'
+						? 'h-7 w-7 bg-white/15 text-white backdrop-blur-sm hover:bg-white/30'
+						: 'h-7 w-7 flex-shrink-0 text-muted-foreground hover:bg-muted hover:text-foreground'}"
+					onclick={(e) => { if (variant === 'overlay') e.stopPropagation(); onDownloadImage(data, filename, index); }}
+				>
+					<Download class={variant === 'overlay' ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
+				</button>
+			{/snippet}
+		</Tooltip.Trigger>
+		<Tooltip.Content>下载</Tooltip.Content>
+	</Tooltip.Root>
+{/snippet}
+
 {#if tasks.length === 0}
 	<div class="flex h-full flex-col items-center justify-center px-4 pb-4">
 		<div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50">
@@ -132,7 +151,7 @@
 				</div>
 			{:else if stats.success > 0}
 				<div class="flex items-center justify-end px-1">
-					<Button variant="link" size="sm" class="h-auto p-0 text-xs text-muted-foreground/60 no-underline hover:text-foreground hover:underline" onclick={() => taskManager.clearCompleted()}>清空已完成</Button>
+					<Button variant="destructive" size="sm" onclick={() => taskManager.clearCompleted()}>清空</Button>
 				</div>
 			{/if}
 
@@ -190,28 +209,22 @@
 											</button>
 											<div class="pointer-events-none absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/40 to-transparent opacity-0 transition-opacity duration-200 group-hover/item:opacity-100">
 												<div class="pointer-events-auto p-2">
-													<Tooltip.Root>
-														<Tooltip.Trigger>
-															{#snippet child({ props })}
-																<button
-																	{...props}
-																	class="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/30"
-																	onclick={(e) => { e.stopPropagation(); onDownloadImage(resource.data, resource.filename || `image-${index + 1}.png`, index); }}
-																>
-																	<Download class="h-3 w-3" />
-																</button>
-															{/snippet}
-														</Tooltip.Trigger>
-														<Tooltip.Content>下载</Tooltip.Content>
-													</Tooltip.Root>
+													{@render downloadBtn(resource.data, resource.filename || `image-${index + 1}.png`, index, 'overlay')}
 												</div>
 											</div>
 										</div>
 									{:else if resource.type === 'video'}
 										<div class="group/item relative overflow-hidden rounded-xl border border-border/30 bg-card {task.mediaResources.length === 3 && index === 0 ? 'row-span-2' : ''}">
-											<video src={resource.data} class="h-full w-full object-cover" style="aspect-ratio: {task.mediaResources.length === 1 ? 'auto' : '1/1'}; {task.mediaResources.length === 1 ? 'max-height: 500px;' : 'min-height: 120px;'}">
-												<track kind="captions" />
-											</video>
+											<button class="block h-full w-full" aria-label="查看视频" onclick={() => onOpenGallery(mergedGallery(task), inputCount(task) + index)}>
+												<video src={resource.data} class="h-full w-full object-cover transition-transform duration-500 group-hover/item:scale-105" style="aspect-ratio: {task.mediaResources.length === 1 ? 'auto' : '1/1'}; {task.mediaResources.length === 1 ? 'max-height: 500px;' : 'min-height: 120px;'}">
+													<track kind="captions" />
+												</video>
+											</button>
+											<div class="pointer-events-none absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/40 to-transparent opacity-0 transition-opacity duration-200 group-hover/item:opacity-100">
+												<div class="pointer-events-auto p-2">
+													{@render downloadBtn(resource.data, resource.filename || `video-${index + 1}`, index, 'overlay')}
+												</div>
+											</div>
 										</div>
 									{:else if resource.type === 'audio'}
 										<div class="col-span-full flex items-center gap-3 rounded-xl border border-border/30 bg-card px-3 py-2.5">
@@ -225,20 +238,7 @@
 												<FileIcon class="h-4 w-4 text-muted-foreground" />
 											</div>
 											<p class="min-w-0 flex-1 truncate text-xs text-muted-foreground">{resource.filename || `文件 ${index + 1}`}</p>
-											<Tooltip.Root>
-												<Tooltip.Trigger>
-													{#snippet child({ props })}
-														<button
-															{...props}
-															class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-															onclick={() => onDownloadImage(resource.data, resource.filename || `file-${index + 1}`, index)}
-														>
-															<Download class="h-3.5 w-3.5" />
-														</button>
-													{/snippet}
-												</Tooltip.Trigger>
-												<Tooltip.Content>下载</Tooltip.Content>
-											</Tooltip.Root>
+											{@render downloadBtn(resource.data, resource.filename || `file-${index + 1}`, index, 'inline')}
 										</div>
 									{/if}
 								{/each}
