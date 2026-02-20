@@ -44,6 +44,9 @@
 	let scalePercent = $derived(Math.round(scale * 100));
 	let isReferenceImage = $derived(currentImage?.filename?.startsWith('参考图'));
 
+	// ── UI 显隐 ──
+	let chromeVisible = $state(true);
+
 	function resetTransform() {
 		scale = 1;
 		translateX = 0;
@@ -71,6 +74,25 @@
 			resetTransform();
 		} else {
 			scale = 2;
+		}
+	}
+
+	// ── 单击图片切换 UI 显隐（区分单击与双击） ──
+	let clickTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function handleImageClick(e: MouseEvent) {
+		e.stopPropagation();
+		if (clickTimer) {
+			// 双击：取消单击定时器，执行双击逻辑
+			clearTimeout(clickTimer);
+			clickTimer = null;
+			handleDoubleClick();
+		} else {
+			// 等待判断是否为双击
+			clickTimer = setTimeout(() => {
+				clickTimer = null;
+				chromeVisible = !chromeVisible;
+			}, 250);
 		}
 	}
 
@@ -186,13 +208,9 @@
 		resetTransform();
 	}
 
-	// ── 背景点击：缩放中先重置，否则关闭 ──
+	// ── 背景点击：直接关闭画廊 ──
 	function handleBackdropClick() {
-		if (isZoomed) {
-			resetTransform();
-		} else {
-			onClose();
-		}
+		onClose();
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
@@ -221,11 +239,12 @@
 <!-- 背景遮罩 -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="fixed inset-0 z-[100] flex flex-col bg-black/95"
+	class="fixed inset-0 z-[100] flex flex-col bg-black/80 backdrop-blur-xl"
+	onclick={handleBackdropClick}
 	onkeydown={(e) => e.key === 'Enter' && onClose()}
 >
 	<!-- ── 顶部工具栏 ── -->
-	<div class="relative z-10 flex items-center justify-between px-4 py-3">
+	<div class="relative z-10 flex items-center justify-between px-4 py-3 transition-opacity duration-200 {chromeVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}">
 		<!-- 左侧：图片计数 + 标签 -->
 		<div class="flex min-w-[80px] items-center gap-2">
 			{#if images.length > 1}
@@ -285,8 +304,6 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="relative flex flex-1 items-center justify-center overflow-hidden"
-		onclick={handleBackdropClick}
-		onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleBackdropClick(); }}
 		onwheel={handleWheel}
 		role="button"
 		tabindex="-1"
@@ -295,9 +312,8 @@
 		<div
 			class="relative select-none"
 			style="touch-action: none; transform: scale({scale}) translate({translateX / scale}px, {translateY / scale}px); transition: {isDragging || isTouching ? 'none' : 'transform 0.2s ease'};"
-			onclick={(e) => e.stopPropagation()}
+			onclick={handleImageClick}
 			onkeydown={(e) => e.stopPropagation()}
-			ondblclick={handleDoubleClick}
 			onpointerdown={handlePointerDown}
 			onpointermove={handlePointerMove}
 			onpointerup={handlePointerUp}
@@ -332,13 +348,13 @@
 		<!-- 导航按钮 -->
 		{#if images.length > 1}
 			<button
-				class="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white/80 backdrop-blur-sm transition-all hover:bg-black/60 hover:text-white"
+				class="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white/80 backdrop-blur-sm transition-all hover:bg-black/60 hover:text-white {chromeVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}"
 				onclick={(e) => { e.stopPropagation(); prevImage(); }}
 			>
 				<ChevronLeft class="h-6 w-6" />
 			</button>
 			<button
-				class="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white/80 backdrop-blur-sm transition-all hover:bg-black/60 hover:text-white"
+				class="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white/80 backdrop-blur-sm transition-all hover:bg-black/60 hover:text-white {chromeVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}"
 				onclick={(e) => { e.stopPropagation(); nextImage(); }}
 			>
 				<ChevronRight class="h-6 w-6" />
@@ -348,7 +364,7 @@
 
 	<!-- ── 底部缩略图 ── -->
 	{#if images.length > 1}
-		<div class="flex justify-center px-4 py-3">
+		<div class="flex justify-center px-4 py-3 transition-opacity duration-200 {chromeVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}">
 			<div class="flex gap-2 overflow-x-auto rounded-xl bg-white/5 p-2 backdrop-blur-sm">
 				{#each images as image, index}
 					{@const isRef = image.filename?.startsWith('参考图')}
