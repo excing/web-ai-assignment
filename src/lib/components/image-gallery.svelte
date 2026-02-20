@@ -239,71 +239,14 @@
 <!-- 背景遮罩 -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="fixed inset-0 z-[100] flex flex-col bg-black/80 backdrop-blur-xl"
+	class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl"
 	onclick={handleBackdropClick}
 	onkeydown={(e) => e.key === 'Enter' && onClose()}
 >
-	<!-- ── 顶部工具栏 ── -->
-	<div class="relative z-10 flex items-center justify-between px-4 py-3 transition-opacity duration-200 {chromeVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}">
-		<!-- 左侧：图片计数 + 标签 -->
-		<div class="flex min-w-[80px] items-center gap-2">
-			{#if images.length > 1}
-				<span class="text-sm tabular-nums text-white/70">
-					{currentIndex + 1} / {images.length}
-				</span>
-			{/if}
-			{#if isReferenceImage}
-				<span class="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-300">参考图</span>
-			{:else}
-				<span class="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">生成图</span>
-			{/if}
-		</div>
-
-		<!-- 中间：缩放控件 -->
-		<div class="flex items-center gap-1 rounded-full bg-white/10 px-1 py-1 backdrop-blur-sm">
-			<button
-				onclick={(e) => { e.stopPropagation(); zoomOut(); }}
-				disabled={scale <= MIN_SCALE}
-				class="flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:text-white/30"
-			>
-				<ZoomOut class="h-4 w-4" />
-			</button>
-			<button
-				onclick={(e) => { e.stopPropagation(); resetTransform(); }}
-				class="min-w-[52px] rounded-full px-2 py-1 text-center text-xs tabular-nums text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-			>
-				{scalePercent}%
-			</button>
-			<button
-				onclick={(e) => { e.stopPropagation(); zoomIn(); }}
-				disabled={scale >= MAX_SCALE}
-				class="flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:text-white/30"
-			>
-				<ZoomIn class="h-4 w-4" />
-			</button>
-		</div>
-
-		<!-- 右侧：下载 + 关闭 -->
-		<div class="flex min-w-[80px] items-center justify-end gap-1">
-			<button
-				onclick={(e) => { e.stopPropagation(); downloadImage(); }}
-				class="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-			>
-				<Download class="h-5 w-5" />
-			</button>
-			<button
-				onclick={(e) => { e.stopPropagation(); onClose(); }}
-				class="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-			>
-				<X class="h-5 w-5" />
-			</button>
-		</div>
-	</div>
-
-	<!-- ── 图片区域 ── -->
+	<!-- ── 图片区域（铺满整个视口） ── -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="relative flex flex-1 items-center justify-center overflow-hidden"
+		class="absolute inset-0 flex items-center justify-center overflow-hidden"
 		onwheel={handleWheel}
 		role="button"
 		tabindex="-1"
@@ -329,7 +272,7 @@
 				<img
 					src={currentImage.data}
 					alt={currentImage.filename || `图片 ${currentIndex + 1}`}
-					class="max-h-[85vh] max-w-[90vw] object-contain"
+					class="max-h-[100vh] max-w-[100vw] object-contain"
 					draggable="false"
 					style="cursor: {isZoomed ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in'};"
 				/>
@@ -337,7 +280,7 @@
 				<video
 					src={currentImage.data}
 					controls
-					class="max-h-[85vh] max-w-[90vw]"
+					class="max-h-[100vh] max-w-[100vw]"
 					autoplay
 				>
 					<track kind="captions" />
@@ -362,10 +305,67 @@
 		{/if}
 	</div>
 
-	<!-- ── 底部缩略图 ── -->
+	<!-- ── 顶部工具栏（浮在图片上方） ── -->
+	<div class="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between px-4 py-3 transition-opacity duration-200 {chromeVisible ? 'opacity-100' : 'opacity-0'}">
+		<!-- 左侧：图片计数 + 标签 -->
+		<div class="pointer-events-auto flex min-w-[80px] items-center gap-2">
+			{#if images.length > 1}
+				<span class="text-sm tabular-nums text-white/70">
+					{currentIndex + 1} / {images.length}
+				</span>
+			{/if}
+			{#if isReferenceImage}
+				<span class="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-300">参考图</span>
+			{:else}
+				<span class="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">生成图</span>
+			{/if}
+		</div>
+
+		<!-- 中间：缩放控件 -->
+		<div class="pointer-events-auto flex items-center gap-1 rounded-full bg-white/10 px-1 py-1 backdrop-blur-sm">
+			<button
+				onclick={(e) => { e.stopPropagation(); zoomOut(); }}
+				disabled={scale <= MIN_SCALE}
+				class="flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:text-white/30"
+			>
+				<ZoomOut class="h-4 w-4" />
+			</button>
+			<button
+				onclick={(e) => { e.stopPropagation(); resetTransform(); }}
+				class="min-w-[52px] rounded-full px-2 py-1 text-center text-xs tabular-nums text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+			>
+				{scalePercent}%
+			</button>
+			<button
+				onclick={(e) => { e.stopPropagation(); zoomIn(); }}
+				disabled={scale >= MAX_SCALE}
+				class="flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:text-white/30"
+			>
+				<ZoomIn class="h-4 w-4" />
+			</button>
+		</div>
+
+		<!-- 右侧：下载 + 关闭 -->
+		<div class="pointer-events-auto flex min-w-[80px] items-center justify-end gap-1">
+			<button
+				onclick={(e) => { e.stopPropagation(); downloadImage(); }}
+				class="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+			>
+				<Download class="h-5 w-5" />
+			</button>
+			<button
+				onclick={(e) => { e.stopPropagation(); onClose(); }}
+				class="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+			>
+				<X class="h-5 w-5" />
+			</button>
+		</div>
+	</div>
+
+	<!-- ── 底部缩略图（浮在图片下方） ── -->
 	{#if images.length > 1}
-		<div class="flex justify-center px-4 py-3 transition-opacity duration-200 {chromeVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}">
-			<div class="flex gap-2 overflow-x-auto rounded-xl bg-white/5 p-2 backdrop-blur-sm">
+		<div class="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center px-4 py-3 transition-opacity duration-200 {chromeVisible ? 'opacity-100' : 'opacity-0'}">
+			<div class="pointer-events-auto flex gap-2 overflow-x-auto rounded-xl bg-white/5 p-2 backdrop-blur-sm">
 				{#each images as image, index}
 					{@const isRef = image.filename?.startsWith('参考图')}
 					<button
