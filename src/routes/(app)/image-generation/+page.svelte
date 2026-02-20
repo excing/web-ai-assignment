@@ -3,12 +3,11 @@
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import { taskManager } from '$lib/stores/image-gen/task-store.svelte';
-	import type { MediaResource } from '$lib/types/media';
 	import { getCurrentUser } from '$lib/stores/auth.svelte';
-	import ImageGallery from '$lib/components/image-gallery.svelte';
 	import { CHAT_ATTACHMENTS, IMAGE_GEN, type AspectRatio } from '$lib/config/constants';
 	import { useFileManagement } from '$lib/composables/use-file-management.svelte';
 	import { setHeaderSlots, clearHeaderSlots } from '$lib/stores/page-header.svelte';
+	import { openGallery } from '$lib/stores/gallery.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import {
 		TemplateGrid,
@@ -24,9 +23,6 @@
 	// ── State ──
 	let activeTab = $state<string>('templates');
 	let input = $state('');
-	let galleryImages = $state<MediaResource[]>([]);
-	let galleryInitialIndex = $state(0);
-	let showGallery = $state(false);
 	let fileInputRef = $state<HTMLInputElement | null>(null);
 	let textareaRef = $state<HTMLTextAreaElement | null>(null);
 	let selectedRatio = $state<AspectRatio>(IMAGE_GEN.DEFAULT_ASPECT_RATIO);
@@ -180,12 +176,6 @@
 	}
 
 	// ── Gallery ──
-	function openGallery(images: MediaResource[], index: number) {
-		galleryImages = images;
-		galleryInitialIndex = index;
-		showGallery = true;
-	}
-
 	function downloadImage(data: string, filename: string, index: number) {
 		const link = document.createElement('a');
 		link.href = data;
@@ -326,7 +316,3 @@
 	class="hidden"
 	onchange={handleFileSelect}
 />
-
-{#if showGallery}
-	<ImageGallery images={galleryImages} initialIndex={galleryInitialIndex} onClose={() => (showGallery = false)} />
-{/if}

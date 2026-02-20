@@ -32,6 +32,7 @@ import { callImageGenApi } from './task-api';
 import { createTaskQueue } from './task-queue.svelte';
 import { createTrackedObjectUrl, revokeAllObjectUrls } from '$lib/composables/use-object-urls.svelte';
 import { urlToBlob } from '$lib/utils/blob';
+import { openGallery } from '$lib/stores/gallery.svelte';
 
 // ── In-memory task representation ──
 
@@ -165,8 +166,7 @@ class TaskManager {
 				action: {
 					label: '查看',
 					onClick: () => {
-						const el = document.getElementById(`task-${id}`);
-						el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+						openGallery(mediaResources, 0);
 					},
 				},
 			});
