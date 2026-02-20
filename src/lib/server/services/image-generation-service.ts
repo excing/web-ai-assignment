@@ -1,5 +1,5 @@
 import { convertToModelMessages } from 'ai';
-import type { UIMessage } from 'ai';
+import type { ContentPart, GeneratedFile, ToolSet, UIMessage } from 'ai';
 import { BaseAIService } from './base-ai-service';
 import { createLogger } from '$lib/server/logger';
 
@@ -152,36 +152,36 @@ export class ImageGenerationService {
 	/**
 	 * 提取文本中的多媒体资源
 	 */
-	private async extractMediaResources(text: string, files: Array<any>, content: Array<any>): Promise<MediaResource[]> {
+	private async extractMediaResources(text: string, files: Array<GeneratedFile>, content: Array<ContentPart<ToolSet>>): Promise<MediaResource[]> {
 		const resources: MediaResource[] = [];
 
 		// 1. 提取生成的文件（来自 AI SDK）
 		if (files && files.length > 0) {
 			for (const file of files) {
 				resources.push({
-					type: this.getMediaType(file.mediaType || file.mimeType),
-					data: file.url || file.data,
-					mimeType: file.mediaType || file.mimeType,
-					filename: file.filename || file.name,
-					isBase64: file.url?.startsWith('data:') || false
+					type: this.getMediaType(file.mediaType),
+					data: `data:${file.mediaType};base64,${file.base64}`,
+					mimeType: file.mediaType,
+					filename: "generated-image",
+					isBase64: !(!file.base64) // 等价于 !!file.base64
 				});
 			}
 		}
 
 		// 2. 从 content 中提取多媒体内容
-		if (content && content.length > 0) {
-			for (const part of content) {
-				if (part.type === 'file' || part.type === 'image') {
-					resources.push({
-						type: this.getMediaType(part.mediaType || part.mimeType),
-						data: part.url || part.data,
-						mimeType: part.mediaType || part.mimeType,
-						filename: part.filename || part.name,
-						isBase64: part.url?.startsWith('data:') || false
-					});
-				}
-			}
-		}
+		// if (content && content.length > 0) {
+		// 	for (const part of content) {
+		// 		if (part.type === 'file') {
+		// 			resources.push({
+		// 				type: part.type,
+		// 				data: `data:${part.file.mediaType};base64,${part.file.base64}`,
+		// 				mimeType: part.file.mediaType,
+		// 				filename: "generated-image",
+		// 				isBase64: !!part.file.base64
+		// 			});
+		// 		}
+		// 	}
+		// }
 
 		// 3. 使用正则提取文本中的 URL 链接
 		const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+\.(jpg|jpeg|png|gif|webp|mp4|webm|mp3|wav|pdf|doc|docx)/gi;
