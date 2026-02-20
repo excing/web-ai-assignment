@@ -1,5 +1,5 @@
 import { toast } from 'svelte-sonner';
-import { refreshCurrentUser } from './auth.svelte';
+import { refreshCurrentUser, getCurrentUser } from './auth.svelte';
 import { fetchCreditBalance } from './credits.svelte';
 import { generateUUID } from '$lib/utils/uuid';
 import { saveImageGenTasks, loadImageGenTasks, clearImageGenHistory } from './image-gen-history.svelte';
@@ -40,15 +40,31 @@ class TaskManager {
 	private runningTasks = 0;
 	private saveTimeout: ReturnType<typeof setTimeout> | null = null;
 	private historyLoaded = false;
+	private currentUserId: string | null = null;
+
+	private getUserId(): string | null {
+		return getCurrentUser()?.id ?? null;
+	}
 
 	/**
-	 * 从 IndexedDB 加载历史任务
+	 * 从 IndexedDB 加载历史任务（按当前用户隔离）
 	 */
 	async loadFromHistory(): Promise<void> {
+		const userId = this.getUserId();
+		if (!userId) return;
+
+		// 如果用户切换了，需要重新加载
+		if (this.currentUserId !== userId) {
+			this.historyLoaded = false;
+			this.tasks = [];
+		}
+
 		if (this.historyLoaded) return;
 		this.historyLoaded = true;
+		this.currentUserId = userId;
+
 		try {
-			const tasks = await loadImageGenTasks();
+			const tasks = await loadImageGenTasks(userId);
 			if (tasks.length > 0) {
 				this.tasks = tasks;
 				this.processQueue();
@@ -64,7 +80,9 @@ class TaskManager {
 	private scheduleSave() {
 		if (this.saveTimeout) clearTimeout(this.saveTimeout);
 		this.saveTimeout = setTimeout(() => {
-			saveImageGenTasks(this.tasks).catch((err) =>
+			const userId = this.getUserId();
+			if (!userId) return;
+			saveImageGenTasks(userId, this.tasks).catch((err) =>
 				console.warn('Failed to save image-gen tasks:', err)
 			);
 		}, 500);
@@ -285,9 +303,12 @@ class TaskManager {
 	clearCompleted() {
 		this.tasks = this.tasks.filter((t) => t.status === 'pending' || t.status === 'loading');
 		if (this.tasks.length === 0) {
-			clearImageGenHistory().catch((err) =>
-				console.warn('Failed to clear image-gen history:', err)
-			);
+			const userId = this.getUserId();
+			if (userId) {
+				clearImageGenHistory(userId).catch((err) =>
+					console.warn('Failed to clear image-gen history:', err)
+				);
+			}
 		} else {
 			this.scheduleSave();
 		}

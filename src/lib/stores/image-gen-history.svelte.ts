@@ -5,7 +5,7 @@
  * 保存时将 File 对象、Base64 图片等提取为 Blob 存入 IndexedDB，
  * 加载时从 IndexedDB 恢复 File 对象（供重试）和 object URL（供显示）。
  *
- * 单 session 模式：所有任务存储在一个固定 ID 的 session 中。
+ * 按用户隔离：每个用户使用独立的 session ID。
  */
 
 import type { GenerationTask, MediaResource } from './task-manager.svelte';
@@ -19,9 +19,12 @@ import {
 	deleteBlobsBySession,
 } from './chat-db.svelte';
 
-const SESSION_ID = 'image-gen-tasks';
 const SESSION_TYPE = 'image-gen';
 const IDB_PREFIX = 'idb://';
+
+function getSessionId(userId: string): string {
+	return `image-gen-tasks:${userId}`;
+}
 
 let activeObjectUrls: string[] = [];
 
@@ -32,21 +35,23 @@ interface SerializedTask extends Omit<GenerationTask, 'attachedFiles'> {
 
 // ── Public API ──
 
-export async function saveImageGenTasks(tasks: GenerationTask[]): Promise<void> {
+export async function saveImageGenTasks(userId: string, tasks: GenerationTask[]): Promise<void> {
+	const sessionId = getSessionId(userId);
+
 	if (tasks.length === 0) {
-		// 任务清空时删除 session 和 blobs
-		await deleteBlobsBySession(SESSION_ID);
-		await deleteSession(SESSION_ID);
+		await deleteBlobsBySession(sessionId);
+		await deleteSession(sessionId);
 		return;
 	}
 
-	const serialized = await serializeTasks(tasks);
+	const serialized = await serializeTasks(sessionId, tasks);
 	const now = Date.now();
-	const existing = await getSession(SESSION_ID);
+	const existing = await getSession(sessionId);
 
 	await putSession({
-		id: SESSION_ID,
+		id: sessionId,
 		type: SESSION_TYPE,
+		userId,
 		title: `${tasks.length} 个图片生成任务`,
 		data: JSON.stringify(serialized),
 		createdAt: existing?.createdAt ?? now,
@@ -54,8 +59,9 @@ export async function saveImageGenTasks(tasks: GenerationTask[]): Promise<void> 
 	});
 }
 
-export async function loadImageGenTasks(): Promise<GenerationTask[]> {
-	const session = await getSession(SESSION_ID);
+export async function loadImageGenTasks(userId: string): Promise<GenerationTask[]> {
+	const sessionId = getSessionId(userId);
+	const session = await getSession(sessionId);
 	if (!session) return [];
 
 	try {
@@ -67,9 +73,10 @@ export async function loadImageGenTasks(): Promise<GenerationTask[]> {
 	}
 }
 
-export async function clearImageGenHistory(): Promise<void> {
-	await deleteBlobsBySession(SESSION_ID);
-	await deleteSession(SESSION_ID);
+export async function clearImageGenHistory(userId: string): Promise<void> {
+	const sessionId = getSessionId(userId);
+	await deleteBlobsBySession(sessionId);
+	await deleteSession(sessionId);
 }
 
 export function revokeImageGenObjectUrls(): void {
@@ -81,10 +88,7 @@ export function revokeImageGenObjectUrls(): void {
 
 // ── Serialization (save) ──
 
-async function serializeTasks(tasks: GenerationTask[]): Promise<SerializedTask[]> {
-	// 先清理旧的 blobs，再重新写入
-	await deleteBlobsBySession(SESSION_ID);
-
+async function serializeTasks(sessionId: string, tasks: GenerationTask[]): Promise<SerializedTask[]> {
 	const serialized: SerializedTask[] = [];
 
 	for (const task of tasks) {
@@ -92,7 +96,6 @@ async function serializeTasks(tasks: GenerationTask[]): Promise<SerializedTask[]
 
 		const st: SerializedTask = {
 			...rest,
-			// 深拷贝 mediaResources 和 attachedPreviews 以避免修改原数据
 			mediaResources: [...rest.mediaResources],
 			attachedPreviews: rest.attachedPreviews ? [...rest.attachedPreviews] : undefined,
 		};
@@ -104,7 +107,7 @@ async function serializeTasks(tasks: GenerationTask[]): Promise<SerializedTask[]
 				const blobId = generateUUID();
 				await putBlob({
 					id: blobId,
-					sessionId: SESSION_ID,
+					sessionId,
 					data: file,
 					mediaType: file.type,
 					filename: file.name,
@@ -114,18 +117,17 @@ async function serializeTasks(tasks: GenerationTask[]): Promise<SerializedTask[]
 			st.attachedFileRefs = refs;
 		}
 
-		// 2. mediaResources[].data: data URL → Blob 分离
+		// 2. mediaResources[].data: data URL / blob URL → Blob 分离
 		st.mediaResources = await Promise.all(
 			st.mediaResources.map(async (res) => {
 				if (!res.data || res.data.startsWith(IDB_PREFIX)) return res;
-				// 只处理 data URL 和 blob URL
 				if (res.data.startsWith('data:') || res.data.startsWith('blob:')) {
 					try {
 						const blob = await fetch(res.data).then((r) => r.blob());
 						const blobId = generateUUID();
 						await putBlob({
 							id: blobId,
-							sessionId: SESSION_ID,
+							sessionId,
 							data: blob,
 							mediaType: res.mimeType || blob.type,
 							filename: res.filename,
@@ -140,7 +142,7 @@ async function serializeTasks(tasks: GenerationTask[]): Promise<SerializedTask[]
 			}),
 		);
 
-		// 3. attachedPreviews[]: data URL → Blob 分离
+		// 3. attachedPreviews[]: data URL / blob URL → Blob 分离
 		if (st.attachedPreviews) {
 			st.attachedPreviews = await Promise.all(
 				st.attachedPreviews.map(async (preview) => {
@@ -151,7 +153,7 @@ async function serializeTasks(tasks: GenerationTask[]): Promise<SerializedTask[]
 							const blobId = generateUUID();
 							await putBlob({
 								id: blobId,
-								sessionId: SESSION_ID,
+								sessionId,
 								data: blob,
 								mediaType: blob.type,
 							});
@@ -168,6 +170,11 @@ async function serializeTasks(tasks: GenerationTask[]): Promise<SerializedTask[]
 
 		serialized.push(st);
 	}
+
+	// 不再先删后写。每次保存都用新 UUID 写入新 blob，
+	// 旧 blob 会在 session 数据更新后变成孤立数据。
+	// 孤立 blob 在 clearImageGenHistory() 时统一清理。
+	// 这样即使保存中途失败，旧数据仍然完好。
 
 	return serialized;
 }

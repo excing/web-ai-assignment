@@ -30,7 +30,7 @@ let activeObjectUrls: string[] = [];
 
 // ── Public API ──
 
-export async function saveChatSession(id: string, messages: UIMessage[]): Promise<void> {
+export async function saveChatSession(userId: string, id: string, messages: UIMessage[]): Promise<void> {
 	if (messages.length === 0) return;
 
 	const processedMessages = await processMediaInMessages(id, messages);
@@ -42,6 +42,7 @@ export async function saveChatSession(id: string, messages: UIMessage[]): Promis
 	await putSession({
 		id,
 		type: SESSION_TYPE,
+		userId,
 		title,
 		data: JSON.stringify(processedMessages),
 		createdAt: existing?.createdAt ?? now,
@@ -62,8 +63,8 @@ export async function deleteChatSession(id: string): Promise<void> {
 	await deleteSession(id);
 }
 
-export async function getChatSessionList(): Promise<SessionMeta[]> {
-	return getSessionMetasByType(SESSION_TYPE);
+export async function getChatSessionList(userId: string): Promise<SessionMeta[]> {
+	return getSessionMetasByType(SESSION_TYPE, userId);
 }
 
 export function revokeActiveObjectUrls(): void {

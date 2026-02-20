@@ -1,4 +1,6 @@
 import { authClient } from '$lib/auth-client';
+import { revokeImageGenObjectUrls } from './image-gen-history.svelte';
+import { revokeActiveObjectUrls } from './chat-history.svelte';
 
 export type AuthUser = {
 	id: string;
@@ -58,6 +60,9 @@ export function initAuthFromLayout(session: unknown) {
 
 	// If user changed (login as different user), replace.
 	if (!_user || _user.id !== sessionUser.id) {
+		// 用户切换：清理旧用户的内存中 object URL
+		revokeImageGenObjectUrls();
+		revokeActiveObjectUrls();
 		setCurrentUser(sessionUser);
 		return;
 	}
@@ -74,6 +79,8 @@ export function patchCurrentUser(patch: Partial<AuthUser>) {
 }
 
 export function clearAuthState() {
+	revokeImageGenObjectUrls();
+	revokeActiveObjectUrls();
 	setCurrentUser(null);
 }
 

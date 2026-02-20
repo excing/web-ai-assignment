@@ -6,13 +6,14 @@
  */
 
 const DB_NAME = 'bingwu-ai';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // ── Types ──
 
 export interface StoredSession {
 	id: string;
 	type: string;
+	userId: string;
 	title: string;
 	data: string; // JSON string
 	createdAt: number;
@@ -30,6 +31,7 @@ export interface StoredBlob {
 export interface SessionMeta {
 	id: string;
 	type: string;
+	userId: string;
 	title: string;
 	createdAt: number;
 	updatedAt: number;
@@ -45,15 +47,24 @@ function openDB(): Promise<IDBDatabase> {
 	return new Promise((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-		request.onupgradeneeded = () => {
+		request.onupgradeneeded = (event) => {
 			const db = request.result;
-			if (!db.objectStoreNames.contains('sessions')) {
+			const oldVersion = (event as IDBVersionChangeEvent).oldVersion;
+
+			if (oldVersion < 1) {
 				const sessionStore = db.createObjectStore('sessions', { keyPath: 'id' });
 				sessionStore.createIndex('type', 'type', { unique: false });
-			}
-			if (!db.objectStoreNames.contains('blobs')) {
 				const blobStore = db.createObjectStore('blobs', { keyPath: 'id' });
 				blobStore.createIndex('sessionId', 'sessionId', { unique: false });
+			}
+
+			if (oldVersion < 2) {
+				// 为 sessions 添加 userId 索引，支持按用户过滤
+				const tx = (event.target as IDBOpenDBRequest).transaction!;
+				const sessionStore = tx.objectStore('sessions');
+				if (!sessionStore.indexNames.contains('userId')) {
+					sessionStore.createIndex('userId', 'userId', { unique: false });
+				}
 			}
 		};
 
@@ -99,16 +110,18 @@ export async function deleteSession(id: string): Promise<void> {
 	});
 }
 
-export async function getSessionMetasByType(type: string): Promise<SessionMeta[]> {
+export async function getSessionMetasByType(type: string, userId: string): Promise<SessionMeta[]> {
 	const db = await openDB();
 	return new Promise((resolve, reject) => {
 		const tx = db.transaction('sessions', 'readonly');
 		const index = tx.objectStore('sessions').index('type');
 		const req = index.getAll(type);
 		req.onsuccess = () => {
-			const sessions = (req.result as StoredSession[]).map(
-				({ id, type, title, createdAt, updatedAt }) => ({ id, type, title, createdAt, updatedAt })
-			);
+			const sessions = (req.result as StoredSession[])
+				.filter((s) => s.userId === userId)
+				.map(
+					({ id, type, userId, title, createdAt, updatedAt }) => ({ id, type, userId, title, createdAt, updatedAt })
+				);
 			sessions.sort((a, b) => b.updatedAt - a.updatedAt);
 			resolve(sessions);
 		};

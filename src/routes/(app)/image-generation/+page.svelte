@@ -3,6 +3,7 @@
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import { taskManager, type MediaResource } from '$lib/stores/task-manager.svelte';
+	import { getCurrentUser } from '$lib/stores/auth.svelte';
 	import ImageGallery from '$lib/components/image-gallery.svelte';
 	import { CHAT_ATTACHMENTS, IMAGE_GEN, type AspectRatio } from '$lib/config/constants';
 	import { compressImage } from '$lib/utils/image-compress';
@@ -39,6 +40,7 @@
 	let placeholderValues = $state<Record<string, string>>({});
 
 	// ── Derived ──
+	let user = $derived(getCurrentUser());
 	let stats = $derived(taskManager.stats);
 	let tasks = $derived(taskManager.tasks);
 	let activeTasks = $derived(tasks.filter((t) => t.status === 'pending' || t.status === 'loading'));
@@ -59,8 +61,14 @@
 	);
 
 	onMount(() => {
-		taskManager.loadFromHistory();
 		loadTemplates();
+	});
+
+	// 响应式加载：用户变化时重新加载历史任务
+	$effect(() => {
+		if (user?.id) {
+			taskManager.loadFromHistory();
+		}
 	});
 
 	// ── Header tab injection ──

@@ -121,8 +121,6 @@
             window.addEventListener("online", handleOnline);
             window.addEventListener("offline", handleOffline);
 
-            refreshSessionList();
-
             return () => {
                 window.removeEventListener("online", handleOnline);
                 window.removeEventListener("offline", handleOffline);
@@ -131,10 +129,19 @@
         }
     });
 
+    // 响应式加载：用户变化时重新加载聊天历史列表
+    $effect(() => {
+        if (user?.id) {
+            refreshSessionList();
+        }
+    });
+
     // ── 聊天历史管理 ──
     async function refreshSessionList() {
         try {
-            sessionMetas = await getChatSessionList();
+            const userId = user?.id;
+            if (!userId) return;
+            sessionMetas = await getChatSessionList(userId);
         } catch (err) {
             console.warn("Failed to load chat history:", err);
         }
@@ -142,8 +149,10 @@
 
     async function autoSaveCurrentChat() {
         if (chat.messages.length === 0) return;
+        const userId = user?.id;
+        if (!userId) return;
         try {
-            await saveChatSession(currentSessionId, chat.messages);
+            await saveChatSession(userId, currentSessionId, chat.messages);
             await refreshSessionList();
         } catch (err) {
             console.warn("Failed to auto-save chat:", err);
