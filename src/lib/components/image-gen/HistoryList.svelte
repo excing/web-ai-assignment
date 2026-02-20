@@ -13,7 +13,8 @@
 		Music,
 		FileIcon,
 	} from 'lucide-svelte';
-	import { taskManager, type GenerationTask, type MediaResource } from '$lib/stores/task-manager.svelte';
+	import { taskManager, type GenerationTask } from '$lib/stores/image-gen/task-store.svelte';
+	import type { MediaResource } from '$lib/types/media';
 
 	interface Props {
 		tasks: GenerationTask[];

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from 'lucide-svelte';
-	import type { MediaResource } from '$lib/stores/task-manager.svelte';
+	import type { MediaResource } from '$lib/types/media';
 
 	interface Props {
 		images: MediaResource[];

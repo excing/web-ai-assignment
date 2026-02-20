@@ -2,11 +2,12 @@
 	import { ImageIcon, LayoutGrid, Clock } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
-	import { taskManager, type MediaResource } from '$lib/stores/task-manager.svelte';
+	import { taskManager } from '$lib/stores/image-gen/task-store.svelte';
+	import type { MediaResource } from '$lib/types/media';
 	import { getCurrentUser } from '$lib/stores/auth.svelte';
 	import ImageGallery from '$lib/components/image-gallery.svelte';
 	import { CHAT_ATTACHMENTS, IMAGE_GEN, type AspectRatio } from '$lib/config/constants';
-	import { compressImage } from '$lib/utils/image-compress';
+	import { useFileManagement } from '$lib/composables/use-file-management.svelte';
 	import { setHeaderSlots, clearHeaderSlots } from '$lib/stores/page-header.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import {
@@ -27,10 +28,20 @@
 	let galleryInitialIndex = $state(0);
 	let showGallery = $state(false);
 	let fileInputRef = $state<HTMLInputElement | null>(null);
-	let attachedFiles = $state<Array<{ id: string; file: File; previewUrl: string }>>([]);
-	let isDragging = $state(false);
 	let textareaRef = $state<HTMLTextAreaElement | null>(null);
 	let selectedRatio = $state<AspectRatio>(IMAGE_GEN.DEFAULT_ASPECT_RATIO);
+
+	// ── File management (composable) ──
+	const fileMgr = useFileManagement({
+		maxFiles: IMAGE_GEN.MAX_REFERENCE_IMAGES,
+		maxFileSize: CHAT_ATTACHMENTS.MAX_FILE_SIZE,
+		allowedTypes: CHAT_ATTACHMENTS.ALLOWED_TYPES,
+		autoCompress: true,
+		deduplicateByName: true,
+	});
+
+	// Alias for template compatibility
+	let attachedFiles = $derived(fileMgr.pendingFiles);
 
 	// ── Template state ──
 	let templates = $state<ApiTemplate[]>([]);
@@ -151,8 +162,7 @@
 		input = '';
 		selectedTemplate = null;
 		placeholderValues = {};
-		attachedFiles.forEach((f) => URL.revokeObjectURL(f.previewUrl));
-		attachedFiles = [];
+		fileMgr.clearAll();
 		selectedRatio = IMAGE_GEN.DEFAULT_ASPECT_RATIO;
 		if (textareaRef) textareaRef.style.height = 'auto';
 
@@ -160,48 +170,13 @@
 		toast.success('已加入创作队列');
 	}
 
-	// ── File management ──
+	// ── File management (delegated to composable) ──
 	function handleFileSelect(e: Event) {
 		const target = e.target as HTMLInputElement;
 		if (target.files) {
-			addFiles(Array.from(target.files));
+			fileMgr.addFiles(target.files);
 			target.value = '';
 		}
-	}
-
-	async function addFiles(files: File[]) {
-		for (const file of files) {
-			if (attachedFiles.length >= IMAGE_GEN.MAX_REFERENCE_IMAGES) {
-				toast.error(`最多同时上传 ${IMAGE_GEN.MAX_REFERENCE_IMAGES} 张参考图`);
-				break;
-			}
-			if (!CHAT_ATTACHMENTS.ALLOWED_TYPES.includes(file.type)) {
-				toast.error(`不支持的文件类型: ${file.type || '未知'}`);
-				continue;
-			}
-			let processedFile = file;
-			if (file.size > CHAT_ATTACHMENTS.MAX_FILE_SIZE) {
-				try {
-					processedFile = await compressImage(file);
-				} catch (e) {
-					toast.error(e instanceof Error ? e.message : `文件过大: ${file.name}`);
-					continue;
-				}
-			}
-			if (attachedFiles.some((f) => f.file.name === processedFile.name)) {
-				toast.error(`文件已添加: ${processedFile.name}`);
-				continue;
-			}
-			const id = `file-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-			const previewUrl = URL.createObjectURL(processedFile);
-			attachedFiles = [...attachedFiles, { id, file: processedFile, previewUrl }];
-		}
-	}
-
-	function removeFile(id: string) {
-		const item = attachedFiles.find((f) => f.id === id);
-		if (item) URL.revokeObjectURL(item.previewUrl);
-		attachedFiles = attachedFiles.filter((f) => f.id !== id);
 	}
 
 	// ── Gallery ──
@@ -221,39 +196,11 @@
 		toast.success('下载成功');
 	}
 
-	// ── Drag & Drop ──
-	function handleDragOver(e: DragEvent) { e.preventDefault(); isDragging = true; }
-	function handleDragLeave(e: DragEvent) { e.preventDefault(); isDragging = false; }
-	function handleDrop(e: DragEvent) {
-		e.preventDefault();
-		isDragging = false;
-		if (e.dataTransfer?.files) {
-			const images = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
-			if (images.length > 0) addFiles(images);
-		}
-	}
-
-	// ── Keyboard & Paste ──
+	// ── Keyboard ──
 	function handleKeyDown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
 			e.preventDefault();
 			handleSubmit();
-		}
-	}
-
-	function handlePaste(e: ClipboardEvent) {
-		const items = e.clipboardData?.items;
-		if (!items) return;
-		const imageFiles: File[] = [];
-		for (const item of items) {
-			if (item.type.startsWith('image/')) {
-				const file = item.getAsFile();
-				if (file) imageFiles.push(file);
-			}
-		}
-		if (imageFiles.length > 0) {
-			e.preventDefault();
-			addFiles(imageFiles);
 		}
 	}
 </script>
@@ -291,12 +238,12 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="flex-1 overflow-y-auto"
-		ondragover={handleDragOver}
-		ondragleave={handleDragLeave}
-		ondrop={handleDrop}
+		ondragover={fileMgr.handleDragOver}
+		ondragleave={fileMgr.handleDragLeave}
+		ondrop={fileMgr.handleDrop}
 	>
 		<!-- Drag overlay -->
-		{#if isDragging}
+		{#if fileMgr.isDragging}
 			<div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-primary/5 backdrop-blur-[2px]">
 				<div class="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-primary/40 bg-background/80 px-12 py-10">
 					<ImageIcon class="h-10 w-10 text-primary/60" />
@@ -340,15 +287,15 @@
 				{selectedRatio}
 				{needsImages}
 				{imageCountHint}
-				{isDragging}
+				isDragging={fileMgr.isDragging}
 				onPlaceholderChange={(key, value) => { placeholderValues = { ...placeholderValues, [key]: value }; }}
 				onSubmit={handleSubmit}
 				onDeselectTemplate={deselectTemplate}
-				onRemoveFile={removeFile}
+				onRemoveFile={fileMgr.removeFile}
 				onOpenFilePicker={() => fileInputRef?.click()}
 				onSelectRatio={(ratio) => (selectedRatio = ratio)}
 				onKeyDown={handleKeyDown}
-				onPaste={handlePaste}
+				onPaste={fileMgr.handlePaste}
 			/>
 		{:else}
 			<ImageGenInputBar
@@ -356,14 +303,14 @@
 				{attachedFiles}
 				{selectedTemplate}
 				{selectedRatio}
-				{isDragging}
+				isDragging={fileMgr.isDragging}
 				onSubmit={handleSubmit}
-				onRemoveFile={removeFile}
+				onRemoveFile={fileMgr.removeFile}
 				onOpenFilePicker={() => fileInputRef?.click()}
 				onSelectRatio={(ratio) => (selectedRatio = ratio)}
 				onDeselectTemplate={deselectTemplate}
 				onKeyDown={handleKeyDown}
-				onPaste={handlePaste}
+				onPaste={fileMgr.handlePaste}
 				onInput={(value) => { input = value; }}
 				onTextareaRef={(el) => { textareaRef = el; }}
 			/>

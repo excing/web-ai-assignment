@@ -8,7 +8,7 @@
     import { highlightCodeBlocks, injectCopyButtons } from "$lib/utils/markdown";
     import { generateUUID } from "$lib/utils/uuid";
     import { CREDITS, CHAT_ATTACHMENTS, UI } from "$lib/config/constants";
-    import { compressImage } from "$lib/utils/image-compress";
+    import { useFileManagement } from "$lib/composables/use-file-management.svelte";
     import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
     import { Button } from "$lib/components/ui/button";
     import { ImageIcon, History, SquarePen, Trash2, MessageSquare, WifiOff, AlertCircle } from "lucide-svelte";
@@ -29,7 +29,7 @@
         getChatSessionList,
         revokeActiveObjectUrls,
         type SessionMeta,
-    } from "$lib/stores/chat-history.svelte";
+    } from "$lib/stores/chat";
 
     // ── 状态 ──
     let input = $state("");
@@ -44,9 +44,17 @@
     let isOnline = $state(true);
     let failedMessage = $state<string | null>(null);
 
-    type PendingFile = { id: string; file: File; previewUrl: string };
-    let pendingFiles = $state<PendingFile[]>([]);
-    let isDragging = $state(false);
+    // ── File management (composable) ──
+    const fileMgr = useFileManagement({
+        maxFiles: CHAT_ATTACHMENTS.MAX_FILES,
+        maxFileSize: CHAT_ATTACHMENTS.MAX_FILE_SIZE,
+        allowedTypes: CHAT_ATTACHMENTS.ALLOWED_TYPES,
+        autoCompress: true,
+        deduplicateByName: false,
+    });
+
+    let pendingFiles = $derived(fileMgr.pendingFiles);
+    let isDragging = $derived(fileMgr.isDragging);
 
     let user = $derived(getCurrentUser());
     let creditBalance = $derived(getCreditBalance());
@@ -169,7 +177,7 @@
         lastError = null;
         failedMessage = null;
         input = "";
-        pendingFiles = [];
+        fileMgr.clearAll();
     }
 
     async function handleLoadChat(id: string) {
@@ -185,7 +193,7 @@
                 lastError = null;
                 failedMessage = null;
                 input = "";
-                pendingFiles = [];
+                fileMgr.clearAll();
                 await tick();
                 scrollToBottom(false);
             } else {
@@ -269,57 +277,11 @@
         prevStreaming = streaming;
     });
 
-    // ── 附件管理 ──
-    function validateFile(file: File): string | null {
-        if (!CHAT_ATTACHMENTS.ALLOWED_TYPES.includes(file.type)) {
-            return `不支持的文件类型: ${file.type || '未知'}`;
-        }
-        return null;
-    }
-
-    async function addFiles(files: FileList | File[]) {
-        for (const file of Array.from(files)) {
-            if (pendingFiles.length >= CHAT_ATTACHMENTS.MAX_FILES) {
-                toast.error(`最多同时上传 ${CHAT_ATTACHMENTS.MAX_FILES} 张图片`);
-                break;
-            }
-            const error = validateFile(file);
-            if (error) { toast.error(error); continue; }
-
-            // 自动压缩超限图片
-            let processedFile = file;
-            if (file.size > CHAT_ATTACHMENTS.MAX_FILE_SIZE) {
-                try {
-                    processedFile = await compressImage(file);
-                } catch (e) {
-                    toast.error(e instanceof Error ? e.message : `文件过大: ${file.name}`);
-                    continue;
-                }
-            }
-
-            pendingFiles = [...pendingFiles, { id: generateUUID(), file: processedFile, previewUrl: URL.createObjectURL(processedFile) }];
-        }
-    }
-
-    function removeFile(id: string) {
-        const item = pendingFiles.find(f => f.id === id);
-        if (item) URL.revokeObjectURL(item.previewUrl);
-        pendingFiles = pendingFiles.filter(f => f.id !== id);
-    }
-
-    function fileToDataUrl(file: File): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    }
-
+    // ── 附件管理 (delegated to composable) ──
     async function buildFileUIParts(): Promise<FileUIPart[]> {
         const parts: FileUIPart[] = [];
         for (const pf of pendingFiles) {
-            const url = await fileToDataUrl(pf.file);
+            const url = await fileMgr.fileToDataUrl(pf.file);
             parts.push({ type: 'file', mediaType: pf.file.type, filename: pf.file.name, url });
         }
         return parts;
@@ -329,36 +291,8 @@
 
     function handleFileInput(e: Event) {
         const target = e.target as HTMLInputElement;
-        if (target.files) addFiles(target.files);
+        if (target.files) fileMgr.addFiles(target.files);
         target.value = "";
-    }
-
-    function handlePaste(e: ClipboardEvent) {
-        const items = e.clipboardData?.items;
-        if (!items) return;
-        const imageFiles: File[] = [];
-        for (const item of items) {
-            if (item.type.startsWith("image/")) {
-                const file = item.getAsFile();
-                if (file) imageFiles.push(file);
-            }
-        }
-        if (imageFiles.length > 0) {
-            e.preventDefault();
-            addFiles(imageFiles);
-        }
-    }
-
-    // ── 拖放 ──
-    function handleDragOver(e: DragEvent) { e.preventDefault(); isDragging = true; }
-    function handleDragLeave(e: DragEvent) { e.preventDefault(); isDragging = false; }
-    function handleDrop(e: DragEvent) {
-        e.preventDefault();
-        isDragging = false;
-        if (e.dataTransfer?.files) {
-            const images = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
-            if (images.length > 0) addFiles(images);
-        }
     }
 
     // ── 发送 ──
@@ -388,8 +322,7 @@
         let files: FileUIPart[] | undefined;
         if (pendingFiles.length > 0) {
             files = await buildFileUIParts();
-            for (const pf of pendingFiles) URL.revokeObjectURL(pf.previewUrl);
-            pendingFiles = [];
+            fileMgr.clearAll();
         }
         sendMessage(message, files);
     }
@@ -493,9 +426,9 @@
     <div
         bind:this={messagesContainer}
         onscroll={checkScrollPosition}
-        ondragover={handleDragOver}
-        ondragleave={handleDragLeave}
-        ondrop={handleDrop}
+        ondragover={fileMgr.handleDragOver}
+        ondragleave={fileMgr.handleDragLeave}
+        ondrop={fileMgr.handleDrop}
         class="flex-1 overflow-y-auto"
     >
         <!-- 拖放叠加层 -->
@@ -546,8 +479,8 @@
         {isStreaming}
         canSend={canSend()}
         onSubmit={handleSubmit}
-        onRemoveFile={removeFile}
+        onRemoveFile={fileMgr.removeFile}
         onOpenFilePicker={openFilePicker}
-        onPaste={handlePaste}
+        onPaste={fileMgr.handlePaste}
     />
 </div>

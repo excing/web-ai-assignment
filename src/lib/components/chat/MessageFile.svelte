@@ -2,7 +2,7 @@
     import { cn } from "$lib/utils";
     import type { FileUIPart } from "ai";
     import ImageGallery from "$lib/components/image-gallery.svelte";
-    import type { MediaResource } from "$lib/stores/task-manager.svelte";
+    import type { MediaResource } from "$lib/types/media";
 
     let { part, role }: {
         part: FileUIPart;
