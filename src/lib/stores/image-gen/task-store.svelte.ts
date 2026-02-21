@@ -161,19 +161,21 @@ class TaskManager {
 			);
 			this.persistTask(id);
 
+			const previews: MediaResource[] = (task.attachedPreviews || []).map((p, i) => ({
+				type: 'image' as const,
+				data: p,
+				filename: `参考图 ${i + 1}`,
+			}));
+			const allMedia = [...previews, ...mediaResources];
+
 			toast.success('图片生成完成', {
 				description: `生成了 ${mediaResources.length} 个媒体资源`,
-				action: {
-					label: '查看',
-					onClick: () => {
-						const previews: MediaResource[] = (task.attachedPreviews || []).map((p, i) => ({
-							type: 'image' as const,
-							data: p,
-							filename: `参考图 ${i + 1}`,
-						}));
-						openGallery([...previews, ...mediaResources], previews.length);
-					},
-				},
+				action: allMedia.length > 0
+					? {
+							label: '查看',
+							onClick: () => openGallery(allMedia, previews.length),
+						}
+					: undefined,
 			});
 
 			Promise.all([

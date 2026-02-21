@@ -149,7 +149,7 @@ export class ImageGenerationService {
 	/**
 	 * 提取文本中的多媒体资源，全部上传到 R2 返回 HTTP URL
 	 */
-	private async extractMediaResources(text: string, files: Array<GeneratedFile>, content: Array<ContentPart<ToolSet>>): Promise<MediaResource[]> {
+	private async extractMediaResources(text: string, files: Array<GeneratedFile>, content: Array<ContentPart<ToolSet>>, responseBody?: any): Promise<MediaResource[]> {
 		const resources: MediaResource[] = [];
 
 		// 1. 提取生成的文件（来自 AI SDK）→ 上传 R2
@@ -192,6 +192,47 @@ export class ImageGenerationService {
 					}
 				}
 			}
+		}
+
+		if (resources.length > 0) return resources;
+
+		// 2.5 从 response.body 提取 (某些 provider 如 OpenRouter/Gemini 将图片放在 choices[].message.images[])
+		try {
+			const choicesImageURLs = responseBody?.choices?.flatMap((choice: any) => choice?.message?.images?.map((img: any) => img.image_url.url))?.filter((url: any) => url && url.length > 0) || [];
+			for (const imageUrl of choicesImageURLs) {
+				// data URI
+				const dataMatch = imageUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/s);
+				if (dataMatch) {
+					const [, mimeType, b64] = dataMatch;
+					log.info(`response.body image: ${mimeType} (base64, ${b64.length} chars)`);
+					try {
+						const buffer = Buffer.from(b64, 'base64');
+						const url = await uploadMediaToR2(buffer, mimeType);
+						resources.push({
+							type: this.getMediaType(mimeType),
+							data: url,
+							mimeType,
+							filename: 'generated-image',
+						});
+					} catch (err) {
+						log.error('R2 upload failed for response.body image', err instanceof Error ? err : undefined);
+					}
+				} else if (imageUrl.startsWith('http')) {
+					// HTTP URL
+					log.info(`response.body image URL: ${imageUrl.substring(0, 100)}`);
+					const result = await this.downloadAndUploadToR2(imageUrl);
+					if (result) {
+						resources.push({
+							type: this.getMediaType(result.mimeType),
+							data: result.data,
+							mimeType: result.mimeType,
+							filename: 'generated-image',
+						});
+					}
+				}
+			}
+		} catch (error) {
+			log.info(`Extracting images from response.body failed: ${error}`);
 		}
 
 		if (resources.length > 0) return resources;
@@ -318,7 +359,8 @@ export class ImageGenerationService {
 			mediaResources: await this.extractMediaResources(
 				result.text,
 				result.files || [],
-				result.content || []
+				result.content || [],
+				result.response?.body
 			)
 		};
 	}
