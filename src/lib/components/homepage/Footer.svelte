@@ -1,6 +1,6 @@
 <script lang="ts">
 	const productLinks = [
-		{ title: "AI 图片生成", href: "/image-generation" },
+		{ title: "AI 图片生成", href: "/create" },
 		{ title: "AI 智能对话", href: "/chat" },
 		{ title: "定价", href: "/pricing" },
 		{ title: "积分中心", href: "/me/credits" },

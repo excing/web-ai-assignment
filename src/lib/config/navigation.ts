@@ -27,7 +27,7 @@ export interface AdminNavItem extends NavItem {}
 // ─── 功能导航（侧边栏 / 底部 Tab）────────────────────────
 
 export const navItems: NavItem[] = [
-	{ key: 'image-generation', label: '图片生成', icon: ImageIcon, href: '/image-generation' },
+	{ key: 'create', label: '图片生成', icon: ImageIcon, href: '/create' },
 	{ key: 'chat', label: 'Chat', icon: MessageCircle, href: '/chat' }
 ];
 
@@ -43,12 +43,12 @@ export const adminNavItems: AdminNavItem[] = [
 // ─── 默认路由 ─────────────────────────────────────────────
 
 /** 登录后默认跳转的路由 */
-export const defaultRoute = '/image-generation';
+export const defaultRoute = '/create';
 
 // ─── 受保护路由前缀 ──────────────────────────────────────
 
 /** 需要认证的路由前缀列表 */
-export const protectedPrefixes = ['/chat', '/me', '/admin', '/image-generation'];
+export const protectedPrefixes = ['/chat', '/me', '/admin', '/create'];
 
 /** 认证相关页面（已登录用户会被重定向走） */
 export const authPages = ['/sign-in', '/sign-up'];
