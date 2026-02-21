@@ -25,6 +25,8 @@ class AiProxyAssignmentsStore {
 		proxyId: '',
 		defaultModel: '',
 		isActive: true,
+		backupProxyId: '',
+		backupModel: '',
 		billingMode: '',
 		inputPer1k: '',
 		outputPer1k: '',
@@ -112,6 +114,8 @@ class AiProxyAssignmentsStore {
 					proxyId: this.assignmentForm.proxyId,
 					defaultModel: this.assignmentForm.defaultModel || null,
 					isActive: this.assignmentForm.isActive,
+					backupProxyId: this.assignmentForm.backupProxyId || null,
+					backupModel: this.assignmentForm.backupModel || null,
 					billingMode: this.assignmentForm.billingMode || null,
 					inputPer1k: this.assignmentForm.inputPer1k ? Number(this.assignmentForm.inputPer1k) : null,
 					outputPer1k: this.assignmentForm.outputPer1k ? Number(this.assignmentForm.outputPer1k) : null,
@@ -157,6 +161,8 @@ class AiProxyAssignmentsStore {
 					proxyId: this.assignmentForm.proxyId,
 					defaultModel: this.assignmentForm.defaultModel || null,
 					isActive: this.assignmentForm.isActive,
+					backupProxyId: this.assignmentForm.backupProxyId || null,
+					backupModel: this.assignmentForm.backupModel || null,
 					billingMode: this.assignmentForm.billingMode || null,
 					inputPer1k: this.assignmentForm.inputPer1k ? Number(this.assignmentForm.inputPer1k) : null,
 					outputPer1k: this.assignmentForm.outputPer1k ? Number(this.assignmentForm.outputPer1k) : null,
@@ -168,6 +174,9 @@ class AiProxyAssignmentsStore {
 				const data = await res.json();
 				const updated = data.assignment;
 				const proxy = aiProxyProxiesStore.proxies.items.find((p) => p.id === updated.proxyId);
+				const backupProxy = updated.backupProxyId
+					? aiProxyProxiesStore.proxies.items.find((p) => p.id === updated.backupProxyId)
+					: null;
 				this.patchAssignmentItem(this.assignmentForm.id, {
 					name: updated.name,
 					description: updated.description,
@@ -175,6 +184,8 @@ class AiProxyAssignmentsStore {
 					proxyId: updated.proxyId,
 					defaultModel: updated.defaultModel,
 					isActive: updated.isActive,
+					backupProxyId: updated.backupProxyId,
+					backupModel: updated.backupModel,
 					billingMode: updated.billingMode,
 					inputPer1k: updated.inputPer1k,
 					outputPer1k: updated.outputPer1k,
@@ -183,7 +194,8 @@ class AiProxyAssignmentsStore {
 					...(proxy ? {
 						proxyName: proxy.name,
 						proxyProvider: proxy.provider,
-					} : {})
+					} : {}),
+					backupProxyName: backupProxy?.name ?? null,
 				});
 				toast.success('绑定更新成功');
 				this.editAssignmentDialogOpen = false;
@@ -312,6 +324,8 @@ class AiProxyAssignmentsStore {
 			proxyId: assignment.proxyId,
 			defaultModel: assignment.defaultModel || '',
 			isActive: assignment.isActive,
+			backupProxyId: assignment.backupProxyId || '',
+			backupModel: assignment.backupModel || '',
 			billingMode: assignment.billingMode || '',
 			inputPer1k: assignment.inputPer1k != null ? String(assignment.inputPer1k) : '',
 			outputPer1k: assignment.outputPer1k != null ? String(assignment.outputPer1k) : '',
@@ -329,6 +343,8 @@ class AiProxyAssignmentsStore {
 			proxyId: '',
 			defaultModel: '',
 			isActive: true,
+			backupProxyId: '',
+			backupModel: '',
 			billingMode: '',
 			inputPer1k: '',
 			outputPer1k: '',

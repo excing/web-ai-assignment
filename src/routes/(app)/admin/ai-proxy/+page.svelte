@@ -323,6 +323,11 @@
 												{:else}
 													<span class="text-xs text-muted-foreground">-</span>
 												{/if}
+												{#if assignment.backupProxyId && assignment.backupModel}
+													<div class="text-xs text-muted-foreground mt-0.5">
+														备份: {assignment.backupProxyName || '未知'}/{assignment.backupModel}
+													</div>
+												{/if}
 											</Table.Cell>
 											<Table.Cell class="max-w-[150px]">
 												<div class="flex items-center gap-1.5">

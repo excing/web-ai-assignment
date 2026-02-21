@@ -21,6 +21,9 @@ export interface AiProxyAssignment {
 	proxyId: string;
 	defaultModel: string | null;
 	isActive: boolean;
+	// 备份渠道
+	backupProxyId: string | null;
+	backupModel: string | null;
 	// 计费配置
 	billingMode: string | null;
 	inputPer1k: number | null;
@@ -36,6 +39,7 @@ export interface AiProxyAssignment {
 	// 关联信息
 	proxyName: string;
 	proxyProvider: string;
+	backupProxyName: string | null;
 }
 
 export interface ProxyFormData {
@@ -57,6 +61,9 @@ export interface AssignmentFormData {
 	proxyId: string;
 	defaultModel: string;
 	isActive: boolean;
+	// 备份渠道
+	backupProxyId: string;
+	backupModel: string;
 	// 计费配置
 	billingMode: string; // '' | 'fixed' | 'dynamic'
 	inputPer1k: string;

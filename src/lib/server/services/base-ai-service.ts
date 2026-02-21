@@ -3,11 +3,12 @@
  *
  * 封装 AI 请求（流式 / 非流式）的公共基础设施：
  * - Proxy 初始化 & 模型创建
- * - 计费预检 & 扣费
- * - 被动健康检查上报
+ * - 计费预检 & 扣费（按功能计费，与渠道无关）
+ * - 被动健康检查上报（含故障转移透传）
  * - 统一错误处理
  *
  * 业务 Service（ChatService、ImageGenerationService 等）通过组合使用本服务。
+ * 故障转移对调用方完全透明。
  */
 
 import {
@@ -79,7 +80,7 @@ export class BaseAIService {
 	}
 
 	/**
-	 * 初始化：获取 Proxy 配置
+	 * 初始化：获取 Proxy 配置（故障转移逻辑在 ai-proxy 层透明处理）
 	 */
 	async initialize(): Promise<ProxyConfig> {
 		this.proxyConfig = await getProxyForFeatureWithFallback(this.options.feature);
@@ -104,6 +105,7 @@ export class BaseAIService {
 	 * 流式 AI 请求
 	 *
 	 * 完整流程：计费预检 → streamText → onFinish 扣费 + 健康上报
+	 * 计费按功能（assignment）计算，与实际使用的渠道（默认/备份）无关。
 	 */
 	async executeStreaming(opts: StreamingCallOptions) {
 		const config = this.getProxyConfig();
@@ -120,6 +122,7 @@ export class BaseAIService {
 		}
 
 		const billingService = this.billingService;
+		const { isBackup } = config;
 
 		try {
 			const result = streamText({
@@ -129,7 +132,7 @@ export class BaseAIService {
 				temperature: opts.temperature,
 				topP: opts.topP,
 				onFinish: async ({ usage }) => {
-					await reportAssignmentSuccess(config.assignmentId);
+					await reportAssignmentSuccess(config.assignmentId, isBackup);
 
 					if (billingService) {
 						await billingService.autoCharge(config, {
@@ -144,7 +147,7 @@ export class BaseAIService {
 				onError: async ({ error }) => {
 					const errorMsg = error instanceof Error ? error.message : String(error);
 					log.error('AI 流式响应错误', undefined, { error: errorMsg });
-					await reportAssignmentFailure(config.assignmentId, errorMsg);
+					await reportAssignmentFailure(config.assignmentId, errorMsg, isBackup);
 				},
 			});
 
@@ -152,7 +155,7 @@ export class BaseAIService {
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			log.error('AI 流式请求失败', error instanceof Error ? error : new Error(errorMsg));
-			await reportAssignmentFailure(config.assignmentId, errorMsg);
+			await reportAssignmentFailure(config.assignmentId, errorMsg, isBackup);
 			throw error;
 		}
 	}
@@ -161,6 +164,7 @@ export class BaseAIService {
 	 * 非流式 AI 请求
 	 *
 	 * 完整流程：计费预检 → generateText → 扣费 + 健康上报
+	 * 计费按功能（assignment）计算，与实际使用的渠道（默认/备份）无关。
 	 */
 	async executeGenerate(opts: GenerateCallOptions) {
 		const config = this.getProxyConfig();
@@ -176,6 +180,8 @@ export class BaseAIService {
 			});
 		}
 
+		const { isBackup } = config;
+
 		try {
 			const result = await generateText({
 				model,
@@ -185,7 +191,7 @@ export class BaseAIService {
 				topP: opts.topP,
 			});
 
-			await reportAssignmentSuccess(config.assignmentId);
+			await reportAssignmentSuccess(config.assignmentId, isBackup);
 
 			if (this.billingService) {
 				await this.billingService.autoCharge(config, {
@@ -201,7 +207,7 @@ export class BaseAIService {
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			log.error('AI 请求失败', error instanceof Error ? error : new Error(errorMsg));
-			await reportAssignmentFailure(config.assignmentId, errorMsg);
+			await reportAssignmentFailure(config.assignmentId, errorMsg, isBackup);
 			throw error;
 		}
 	}

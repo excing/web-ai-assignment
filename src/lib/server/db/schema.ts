@@ -150,16 +150,21 @@ export const aiProxyAssignment = pgTable('ai_proxy_assignment', {
         .references(() => aiProxy.id, { onDelete: 'cascade' }),
     defaultModel: text('default_model'), // 该功能的默认模型
     isActive: boolean('is_active').notNull().default(true),
-    // 计费配置
+    // 备份渠道（可选）
+    backupProxyId: text('backup_proxy_id')
+        .references(() => aiProxy.id, { onDelete: 'set null' }),
+    backupModel: text('backup_model'),
+    // 计费配置（按功能计费，与渠道无关）
     billingMode: text('billing_mode'), // 'fixed' | 'dynamic' | null
     inputPer1k: integer('input_per_1k'), // 每千 tokens 输入费用（积分）
     outputPer1k: integer('output_per_1k'), // 每千 tokens 输出费用（积分）
     minimum: integer('minimum'), // 最小扣款（固定模式下为固定扣费积分）
-    // 被动健康检查
+    // 被动健康检查（复用单套字段跟踪默认+备份渠道）
+    // unhealthyCount 0~4: 默认渠道累积失败; ≥5: 切备份; 5~9: 备份累积失败; ≥10: 应急
     healthStatus: text('health_status').notNull().default('healthy'), // 'healthy' | 'unhealthy'
-    unhealthyCount: integer('unhealthy_count').notNull().default(0), // 连续失败次数
-    lastError: text('last_error'), // 最近一次错误信息
-    lastErrorAt: timestamp('last_error_at'), // 最近一次错误时间
+    unhealthyCount: integer('unhealthy_count').notNull().default(0),
+    lastError: text('last_error'),
+    lastErrorAt: timestamp('last_error_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow()
 });

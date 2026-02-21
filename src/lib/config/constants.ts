@@ -43,6 +43,15 @@ export const HEALTH_STATUS = {
 	UNHEALTHY: 'unhealthy',
 } as const;
 
+export const FAILOVER = {
+	/** 默认渠道连续失败阈值：达到后切换到备份渠道 */
+	PRIMARY_THRESHOLD: 5,
+	/** 备份渠道连续失败阈值：unhealthyCount 达到此值触发应急（PRIMARY_THRESHOLD + 5） */
+	EMERGENCY_THRESHOLD: 10,
+	/** 默认渠道冷却时间（毫秒）：1 小时 */
+	COOLDOWN_MS: 60 * 60 * 1000,
+} as const;
+
 // ─── 积分 ────────────────────────────────────────────────────
 
 export const CREDITS = {
