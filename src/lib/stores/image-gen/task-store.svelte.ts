@@ -166,7 +166,12 @@ class TaskManager {
 				action: {
 					label: '查看',
 					onClick: () => {
-						openGallery(mediaResources, 0);
+						const previews: MediaResource[] = (task.attachedPreviews || []).map((p, i) => ({
+							type: 'image' as const,
+							data: p,
+							filename: `参考图 ${i + 1}`,
+						}));
+						openGallery([...previews, ...mediaResources], previews.length);
 					},
 				},
 			});
