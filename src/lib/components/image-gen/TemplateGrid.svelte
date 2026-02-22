@@ -33,7 +33,7 @@
 	<div class="mb-5 flex items-center justify-between gap-4">
 		<div>
 			<h2 class="text-lg font-semibold tracking-tight text-foreground">创作模板</h2>
-			<p class="mt-0.5 text-sm text-muted-foreground">选择一个模板快速开始，或直接输入你的描述</p>
+			<p class="mt-0.5 text-sm text-muted-foreground">选择一个模板<span class="hidden sm:inline">快速开始</span>，或直接输入你的描述</p>
 		</div>
 		{#if showFilter}
 			<Select.Root
