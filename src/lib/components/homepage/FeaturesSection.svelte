@@ -1,7 +1,17 @@
 <script lang="ts">
-	import { ImageIcon, MessageCircle, Coins, Zap, Shield, Layers } from "lucide-svelte";
+	import { ImageIcon, MessageCircle, Coins, Zap, Shield, Layers, HardDrive, Globe } from "lucide-svelte";
 
 	const features = [
+		{
+			icon: Shield,
+			title: "数据本地存储",
+			description: "聊天记录和生成的图片全部保存在你的设备本地，不上传到云端服务器，从源头保护你的隐私。",
+		},
+		{
+			icon: Globe,
+			title: "多平台多模型",
+			description: "对接 OpenAI、Google、Anthropic 等多个主流平台，支持 GPT、Claude、Gemini 等多种大模型，自由选择最适合的 AI。",
+		},
 		{
 			icon: ImageIcon,
 			title: "AI 图片生成",
@@ -20,17 +30,7 @@
 		{
 			icon: Zap,
 			title: "极速响应",
-			description: "如骏马疾驰，流式输出技术让 AI 回复实时呈现。图片生成支持并发队列，高效不卡顿。",
-		},
-		{
-			icon: Shield,
-			title: "安全可靠",
-			description: "企业级用户认证，数据传输全程加密。支持邮箱验证和多种登录方式，保障账户安全。",
-		},
-		{
-			icon: Layers,
-			title: "多模态支持",
-			description: "文字、图片多模态输入输出。对话中可上传图片提问，图片生成支持参考图引导风格。",
+			description: "流式输出技术让 AI 回复实时呈现。图片生成支持并发队列，高效不卡顿。",
 		},
 	];
 </script>
@@ -40,10 +40,10 @@
 		<!-- Section header -->
 		<div class="mx-auto max-w-2xl text-center">
 			<h2 class="text-3xl font-bold tracking-tight sm:text-4xl">
-				千里之行，始于足下
+				隐私优先，多模型驱动
 			</h2>
 			<p class="mt-4 text-lg text-muted-foreground">
-				火马般的 AI 能力，为你的创作保驾护航
+				数据存在本地不泄漏，多个 AI 平台任你选
 			</p>
 		</div>
 

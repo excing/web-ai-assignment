@@ -18,7 +18,7 @@
 			<!-- Badge -->
 			<div class="mb-6 inline-flex items-center gap-2 rounded-full border bg-background px-4 py-1.5 text-sm text-muted-foreground shadow-sm">
 				<Sparkles class="h-4 w-4 text-primary" />
-				<span>AI 驱动的下一代创作工具</span>
+				<span>数据本地存储 · 多平台多模型</span>
 			</div>
 
 			<!-- Headline -->

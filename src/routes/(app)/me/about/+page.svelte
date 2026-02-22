@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Separator } from "$lib/components/ui/separator";
-    import { Sparkles, ImageIcon, MessageCircle, Zap } from "lucide-svelte";
+    import { Sparkles, ImageIcon, MessageCircle, Zap, Shield, Globe } from "lucide-svelte";
     import { version } from "$app/environment";
 </script>
 
@@ -26,6 +26,24 @@
         <div class="py-6">
             <h2 class="mb-4 text-sm font-medium text-muted-foreground">核心功能</h2>
             <div class="space-y-4">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-green-100 dark:bg-green-900/30">
+                        <Shield class="h-4.5 w-4.5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium">数据本地存储</p>
+                        <p class="text-xs text-muted-foreground">聊天和生图数据保存在本地，隐私不泄漏</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/30">
+                        <Globe class="h-4.5 w-4.5 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium">多平台多模型</p>
+                        <p class="text-xs text-muted-foreground">对接多个 AI 平台，支持 GPT、Claude、Gemini 等</p>
+                    </div>
+                </div>
                 <div class="flex items-start gap-3">
                     <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
                         <ImageIcon class="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
