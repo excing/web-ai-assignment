@@ -9,6 +9,7 @@
     import { generateUUID } from "$lib/utils/uuid";
     import { CREDITS, CHAT_ATTACHMENTS, UI } from "$lib/config/constants";
     import { useFileManagement } from "$lib/composables/use-file-management.svelte";
+    import { compressImage } from "$lib/utils/image-compress";
     import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
     import { Button } from "$lib/components/ui/button";
     import { ImageIcon, History, SquarePen, Trash2, MessageSquare, WifiOff, AlertCircle } from "lucide-svelte";
@@ -47,9 +48,7 @@
     // ── File management (composable) ──
     const fileMgr = useFileManagement({
         maxFiles: CHAT_ATTACHMENTS.MAX_FILES,
-        maxFileSize: CHAT_ATTACHMENTS.MAX_FILE_SIZE,
         allowedTypes: CHAT_ATTACHMENTS.ALLOWED_TYPES,
-        autoCompress: true,
         deduplicateByName: false,
     });
 
@@ -279,10 +278,12 @@
 
     // ── 附件管理 (delegated to composable) ──
     async function buildFileUIParts(): Promise<FileUIPart[]> {
+        const maxSize = CHAT_ATTACHMENTS.MAX_FILE_SIZE;
         const parts: FileUIPart[] = [];
         for (const pf of pendingFiles) {
-            const url = await fileMgr.fileToDataUrl(pf.file);
-            parts.push({ type: 'file', mediaType: pf.file.type, filename: pf.file.name, url });
+            const file = pf.file.size > maxSize ? await compressImage(pf.file, maxSize) : pf.file;
+            const url = await fileMgr.fileToDataUrl(file);
+            parts.push({ type: 'file', mediaType: file.type, filename: file.name, url });
         }
         return parts;
     }

@@ -30,9 +30,7 @@
 	// ── File management (composable) ──
 	const fileMgr = useFileManagement({
 		maxFiles: IMAGE_GEN.MAX_REFERENCE_IMAGES,
-		maxFileSize: CHAT_ATTACHMENTS.MAX_FILE_SIZE,
 		allowedTypes: CHAT_ATTACHMENTS.ALLOWED_TYPES,
-		autoCompress: true,
 		deduplicateByName: true,
 	});
 

@@ -85,13 +85,11 @@ export const UI = {
 
 export const CHAT_ATTACHMENTS = {
 	/** 允许的图片 MIME 类型 */
-	ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as string[],
-	/** 单文件最大 (字节)：5MB */
-	MAX_FILE_SIZE: 5 * 1024 * 1024,
+	ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/webp'] as string[],
+	/** 单文件最大 (字节)：512KB */
+	MAX_FILE_SIZE: 512 * 1024,
 	/** 单次最多附件数 */
-	MAX_FILES: 4,
-	/** 人类可读最大大小 */
-	MAX_SIZE_LABEL: '5MB',
+	MAX_FILES: 9,
 } as const;
 
 // ─── 图片生成 ──────────────────────────────────────────────

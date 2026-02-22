@@ -6,8 +6,9 @@
  */
 
 import type { MediaResource } from '$lib/types/media';
-import type { AspectRatio } from '$lib/config/constants';
+import { CHAT_ATTACHMENTS, type AspectRatio } from '$lib/config/constants';
 import { compositeImages } from '$lib/utils/image-composite';
+import { compressImage } from '$lib/utils/image-compress';
 
 function fileToDataUrl(file: File): Promise<string> {
 	return new Promise((resolve, reject) => {
@@ -31,12 +32,14 @@ export async function callImageGenApi(
 	}
 
 	if (files && files.length > 0) {
+		// 合并图片后再压缩超限图片
 		const composited = await compositeImages(files, aspectRatio);
-		const dataUrl = await fileToDataUrl(composited);
+		const pendingFile = await compressImage(composited, CHAT_ATTACHMENTS.MAX_FILE_SIZE);
+		const dataUrl = await fileToDataUrl(pendingFile);
 		parts.push({
 			type: 'file',
-			mediaType: composited.type,
-			filename: composited.name,
+			mediaType: pendingFile.type,
+			filename: pendingFile.name,
 			url: dataUrl,
 		});
 	}

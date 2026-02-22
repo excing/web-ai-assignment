@@ -6,7 +6,6 @@
  */
 
 import { toast } from 'svelte-sonner';
-import { compressImage } from '$lib/utils/image-compress';
 import { generateUUID } from '$lib/utils/uuid';
 
 export interface PendingFile {
@@ -17,9 +16,7 @@ export interface PendingFile {
 
 export interface FileManagementOptions {
 	maxFiles: number;
-	maxFileSize: number;
 	allowedTypes: string[];
-	autoCompress: boolean;
 	deduplicateByName: boolean;
 }
 
@@ -53,23 +50,12 @@ export function useFileManagement(options: FileManagementOptions) {
 				continue;
 			}
 
-			// 自动压缩超限图片
-			let processedFile = file;
-			if (options.autoCompress && file.size > options.maxFileSize) {
-				try {
-					processedFile = await compressImage(file);
-				} catch (e) {
-					toast.error(e instanceof Error ? e.message : `文件过大: ${file.name}`);
-					continue;
-				}
-			}
-
 			pendingFiles = [
 				...pendingFiles,
 				{
 					id: generateUUID(),
-					file: processedFile,
-					previewUrl: URL.createObjectURL(processedFile),
+					file,
+					previewUrl: URL.createObjectURL(file),
 				},
 			];
 		}
