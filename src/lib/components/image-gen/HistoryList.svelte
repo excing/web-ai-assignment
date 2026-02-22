@@ -12,7 +12,13 @@
 		Clock,
 		Music,
 		FileIcon,
+		Copy,
+		ClipboardCopy,
+		Timer,
+		AlertTriangle,
+		Eraser,
 	} from 'lucide-svelte';
+	import { toast } from 'svelte-sonner';
 	import { taskManager, type GenerationTask } from '$lib/stores/image-gen/task-store.svelte';
 	import type { MediaResource } from '$lib/types/media';
 
@@ -60,6 +66,23 @@
 		if (count === 1) return 'grid-cols-1';
 		return 'grid-cols-2';
 	}
+
+	/** Format duration between createdAt and completedAt */
+	function formatDuration(task: GenerationTask): string | null {
+		if (!task.completedAt) return null;
+		const seconds = Math.round((task.completedAt - task.createdAt) / 1000);
+		if (seconds < 1) return '耗时 <1s';
+		return `耗时 ${seconds}s`;
+	}
+
+	async function copyPrompt(prompt: string) {
+		try {
+			await navigator.clipboard.writeText(prompt);
+			toast.success('已复制提示词');
+		} catch {
+			toast.error('复制失败');
+		}
+	}
 </script>
 
 {#snippet downloadBtn(data: string, filename: string, index: number, variant: 'overlay' | 'inline')}
@@ -79,6 +102,21 @@
 		</Tooltip.Trigger>
 		<Tooltip.Content>下载</Tooltip.Content>
 	</Tooltip.Root>
+{/snippet}
+
+{#snippet metaRefPreviews(task: GenerationTask)}
+	{#if task.attachedPreviews && task.attachedPreviews.length > 0}
+		<div class="flex flex-shrink-0 gap-1">
+			{#each task.attachedPreviews as preview, i}
+				<button
+					onclick={() => onOpenGallery(mergedGallery(task), i)}
+					class="overflow-hidden rounded-md border border-border/50 transition-opacity hover:opacity-80"
+				>
+					<img src={preview} alt="参考图 {i + 1}" class="h-6 w-6 object-cover" />
+				</button>
+			{/each}
+		</div>
+	{/if}
 {/snippet}
 
 {#if tasks.length === 0}
@@ -144,15 +182,8 @@
 			{#if activeTasks.length > 0}
 				<div class="flex items-center gap-3 pt-2">
 					<Separator class="flex-1 bg-border/50" />
-					<div class="flex items-center gap-2">
-						<span class="text-xs text-muted-foreground/70">已完成 {stats.success}</span>
-						<Button variant="link" size="sm" class="h-auto p-0 text-xs text-muted-foreground/50 no-underline hover:text-foreground hover:underline" onclick={() => taskManager.clearCompleted()}>清空</Button>
-					</div>
+					<span class="text-xs text-muted-foreground/70">已完成 {stats.success}</span>
 					<Separator class="flex-1 bg-border/50" />
-				</div>
-			{:else if stats.success > 0}
-				<div class="flex items-center justify-end px-1">
-					<Button variant="destructive" size="sm" onclick={() => taskManager.clearCompleted()}>清空</Button>
 				</div>
 			{/if}
 
@@ -183,7 +214,7 @@
 									<Tooltip.Root>
 										<Tooltip.Trigger>
 											{#snippet child({ props })}
-												<Button {...props} variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive" onclick={() => taskManager.deleteTask(task.id)}>
+												<Button {...props} variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-destructive" onclick={() => taskManager.deleteTask(task.id)}>
 													<Trash2 class="h-3.5 w-3.5" />
 												</Button>
 											{/snippet}
@@ -192,6 +223,15 @@
 									</Tooltip.Root>
 								</div>
 							</div>
+							<!-- Error card meta: duration + time -->
+							{#if formatDuration(task)}
+								<div class="mt-2 flex items-center justify-end gap-2 border-t border-destructive/10 pt-2">
+									<span class="flex items-center gap-1 text-xs text-muted-foreground">
+										<Timer class="h-3 w-3" />
+										{formatDuration(task)}
+									</span>
+								</div>
+							{/if}
 						</Card.Root>
 					{:else if task.mediaResources.length > 0}
 						<!-- Success card (unified layout) -->
@@ -247,27 +287,119 @@
 
 							<!-- Bottom meta info -->
 							<div class="mt-1.5 flex items-center gap-2 px-1">
-								{#if task.attachedPreviews && task.attachedPreviews.length > 0}
-									<div class="flex flex-shrink-0 gap-1">
-										{#each task.attachedPreviews as preview, i}
-											<button
-												onclick={() => onOpenGallery(mergedGallery(task), i)}
-												class="overflow-hidden rounded-md border border-border/50 transition-opacity hover:opacity-80"
-											>
-												<img src={preview} alt="参考图 {i + 1}" class="h-6 w-6 object-cover" />
-											</button>
-										{/each}
-									</div>
-								{/if}
-								<p class="min-w-0 flex-1 truncate text-xs text-muted-foreground/60">{task.prompt}</p>
-								<span class="flex-shrink-0 text-xs text-muted-foreground/40">
+								{@render metaRefPreviews(task)}
+								<p class="min-w-0 flex-1 truncate text-xs text-muted-foreground">{task.prompt}</p>
+								<span class="flex-shrink-0 text-xs text-muted-foreground/70">
 									{new Date(task.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 								</span>
-								<Button variant="link" size="sm" class="h-auto flex-shrink-0 p-0 text-xs text-muted-foreground/40 no-underline hover:text-destructive hover:underline" onclick={() => taskManager.deleteTask(task.id)}>删除</Button>
+								{#if formatDuration(task)}
+									<span class="flex flex-shrink-0 items-center gap-1 text-xs text-muted-foreground/70">
+										<Timer class="h-3 w-3" />
+										{formatDuration(task)}
+									</span>
+								{/if}
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										{#snippet child({ props })}
+											<button
+												{...props}
+												class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground"
+												onclick={() => copyPrompt(task.prompt)}
+											>
+												<Copy class="h-3 w-3" />
+											</button>
+										{/snippet}
+									</Tooltip.Trigger>
+									<Tooltip.Content>复制提示词</Tooltip.Content>
+								</Tooltip.Root>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										{#snippet child({ props })}
+											<button
+												{...props}
+												class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground"
+												onclick={() => taskManager.cloneTask(task.id)}
+											>
+												<ClipboardCopy class="h-3 w-3" />
+											</button>
+										{/snippet}
+									</Tooltip.Trigger>
+									<Tooltip.Content>再来一次</Tooltip.Content>
+								</Tooltip.Root>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										{#snippet child({ props })}
+											<button
+												{...props}
+												class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:bg-muted hover:text-destructive"
+												onclick={() => taskManager.deleteTask(task.id)}
+											>
+												<Trash2 class="h-3 w-3" />
+											</button>
+										{/snippet}
+									</Tooltip.Trigger>
+									<Tooltip.Content>删除</Tooltip.Content>
+								</Tooltip.Root>
 							</div>
 						</div>
+					{:else}
+						<!-- Empty-result anomaly card: success but no media returned -->
+						<Card.Root class="group gap-0 rounded-2xl border-amber-500/20 px-4 py-3 shadow-none">
+							<div class="flex items-start gap-3">
+								<div class="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-amber-500/10">
+									<AlertTriangle class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+								</div>
+								<div class="min-w-0 flex-1">
+									<p class="text-sm">{task.prompt}</p>
+									<p class="mt-1 text-xs text-amber-600/80 dark:text-amber-400/80">请求已完成，但未返回任何资源</p>
+								</div>
+								<div class="flex items-center gap-1">
+									<Tooltip.Root>
+										<Tooltip.Trigger>
+											{#snippet child({ props })}
+												<Button {...props} variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-foreground" onclick={() => taskManager.retryTask(task.id)}>
+													<RefreshCw class="h-3.5 w-3.5" />
+												</Button>
+											{/snippet}
+										</Tooltip.Trigger>
+										<Tooltip.Content>重试</Tooltip.Content>
+									</Tooltip.Root>
+									<Tooltip.Root>
+										<Tooltip.Trigger>
+											{#snippet child({ props })}
+												<Button {...props} variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-destructive" onclick={() => taskManager.deleteTask(task.id)}>
+													<Trash2 class="h-3.5 w-3.5" />
+												</Button>
+											{/snippet}
+										</Tooltip.Trigger>
+										<Tooltip.Content>删除</Tooltip.Content>
+									</Tooltip.Root>
+								</div>
+							</div>
+							{#if formatDuration(task)}
+								<div class="mt-2 flex items-center justify-end gap-2 border-t border-amber-500/10 pt-2">
+									<span class="flex items-center gap-1 text-xs text-muted-foreground">
+										<Timer class="h-3 w-3" />
+										{formatDuration(task)}
+									</span>
+								</div>
+							{/if}
+						</Card.Root>
 					{/if}
 				{/each}
+			</div>
+
+			<!-- Clear completed button at bottom -->
+			<div class="flex justify-center pt-2">
+				<Button
+					variant="ghost"
+					size="sm"
+					class="h-8 gap-1.5 text-xs text-muted-foreground/50 hover:text-destructive"
+					onclick={() => taskManager.clearCompleted()}
+				>
+					<Eraser class="h-3.5 w-3.5" />
+					清空记录
+				</Button>
 			</div>
 		{/if}
 	</div>

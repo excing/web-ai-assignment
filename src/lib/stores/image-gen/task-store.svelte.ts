@@ -247,10 +247,21 @@ class TaskManager {
 
 	retryTask(id: string) {
 		const task = this.tasks.find((t) => t.id === id);
-		if (task && task.status === 'error') {
-			this.updateStatus(id, 'pending');
-			this.queue.kick();
-		}
+		if (!task || task.status === 'pending' || task.status === 'loading') return;
+		this.tasks = this.tasks.map((t) =>
+			t.id === id
+				? { ...t, status: 'pending' as const, mediaResources: [], error: undefined, completedAt: undefined }
+				: t,
+		);
+		this.persistTask(id);
+		this.queue.kick();
+	}
+
+	/** Clone a completed task as a brand-new request with identical parameters */
+	cloneTask(id: string) {
+		const source = this.tasks.find((t) => t.id === id);
+		if (!source) return;
+		this.createTask(source.prompt, source.attachedFiles, source.aspectRatio, source.featureKey);
 	}
 
 	get stats() {
