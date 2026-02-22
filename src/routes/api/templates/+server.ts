@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { imageGenTemplate, aiProxyAssignment } from '$lib/server/db/schema';
@@ -42,7 +43,11 @@ export const GET: RequestHandler = async () => {
             grouped[tpl.category].push(tpl);
         }
 
-        return json({ templates, grouped });
+        return json({ templates, grouped }, dev ? undefined : {
+            headers: {
+                'Cache-Control': 'public, max-age=300, stale-while-revalidate=60',
+            },
+        });
     } catch (error) {
         return errorResponse(error, '获取模板失败');
     }
