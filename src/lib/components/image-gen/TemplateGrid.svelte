@@ -1,13 +1,11 @@
 <script lang="ts">
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Avatar from '$lib/components/ui/avatar';
 	import { Sparkles } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import type { ApiTemplate } from './types';
 
 	interface Props {
 		templates: ApiTemplate[];
-		groupedTemplates: Record<string, ApiTemplate[]>;
 		loading: boolean;
 		selectedTemplate: ApiTemplate | null;
 		onSelectTemplate: (tpl: ApiTemplate) => void;
@@ -15,7 +13,6 @@
 
 	let {
 		templates,
-		groupedTemplates,
 		loading,
 		selectedTemplate,
 		onSelectTemplate,
@@ -41,57 +38,54 @@
 			<p class="mt-3 text-sm text-muted-foreground">暂无模板，请直接输入描述</p>
 		</div>
 	{:else}
-		<!-- Template cards grouped by category -->
-		{#each Object.entries(groupedTemplates) as [category, categoryTemplates], ci}
-			<div class={ci > 0 ? 'mt-5' : ''}>
-				{#if Object.keys(groupedTemplates).length > 1}
-					<h3 class="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">{category}</h3>
-				{/if}
-				<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
-					{#each categoryTemplates as tpl, i}
-						<button
-							onclick={() => onSelectTemplate(tpl)}
-							class={cn(
-								'group relative flex flex-col items-start gap-2 rounded-2xl border bg-card p-3 text-left transition-all hover:shadow-sm active:scale-[0.97]',
-								selectedTemplate?.id === tpl.id
-									? 'border-primary/40 bg-primary/5 shadow-sm'
-									: 'border-border/50 hover:border-border hover:bg-accent/50'
-							)}
-							style="animation: fadeSlideIn 0.3s ease both; animation-delay: {(ci * 4 + i) * 30}ms;"
-						>
-							{#if tpl.previewImageUrl}
-								<div class="w-full overflow-hidden rounded-xl">
-									<img
-										src={tpl.previewImageUrl}
-										alt={tpl.name}
-										class="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-105"
-									/>
-								</div>
-							{:else}
-								<Avatar.Root class="h-9 w-9 rounded-xl transition-transform group-hover:scale-110">
-									<Avatar.Fallback class="rounded-xl bg-muted/70">
-										<Sparkles class="h-[18px] w-[18px] text-muted-foreground" />
-									</Avatar.Fallback>
-								</Avatar.Root>
-							{/if}
-							<div class="w-full">
-								<p class="text-sm font-medium text-foreground">{tpl.name}</p>
-								{#if tpl.description}
-									<p class="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground/70">{tpl.description}</p>
-								{:else}
-									<p class="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground/70">{tpl.prompt}</p>
-								{/if}
-							</div>
-							{#if tpl.isPinned}
-								<div class="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary/10">
-									<Sparkles class="h-3 w-3 text-primary" />
-								</div>
-							{/if}
-						</button>
-					{/each}
-				</div>
-			</div>
-		{/each}
+		<!-- Template cards -->
+		<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
+			{#each templates as tpl, i}
+				<button
+					onclick={() => onSelectTemplate(tpl)}
+					class={cn(
+						'group relative aspect-[1/1] overflow-hidden rounded-2xl border text-left transition-all hover:shadow-sm active:scale-[0.97]',
+						selectedTemplate?.id === tpl.id
+							? 'border-primary/40 shadow-sm ring-1 ring-primary/30'
+							: 'border-border/50 hover:border-border'
+					)}
+					style="animation: fadeSlideIn 0.3s ease both; animation-delay: {i * 30}ms;"
+				>
+					<!-- Full-bleed image -->
+					{#if tpl.previewImageUrl}
+						<img
+							src={tpl.previewImageUrl}
+							alt={tpl.name}
+							class="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+						/>
+					{:else}
+						<div class="absolute inset-0 flex items-center justify-center bg-muted/70">
+							<Sparkles class="h-8 w-8 text-muted-foreground/40" />
+						</div>
+					{/if}
+
+					<!-- Bottom text overlay with backdrop blur -->
+					<div class="absolute inset-x-0 bottom-0 bg-background/60 px-2.5 py-2 backdrop-blur-md">
+						<p class="truncate text-sm font-medium text-foreground">{tpl.name}</p>
+						{#if tpl.description}
+							<p class="mt-0.5 line-clamp-1 text-xs leading-relaxed text-muted-foreground">{tpl.description}</p>
+						{:else}
+							<p class="mt-0.5 line-clamp-1 text-xs leading-relaxed text-muted-foreground">{tpl.prompt}</p>
+						{/if}
+					</div>
+
+					<!-- Category badge & pinned indicator -->
+					<div class="absolute right-1.5 top-1.5 flex items-center gap-1">
+						<span class="rounded-full bg-background/60 px-1.5 py-0.5 text-[10px] leading-none text-foreground/80 backdrop-blur-md">{tpl.category}</span>
+						{#if tpl.isPinned}
+							<span class="flex h-5 w-5 items-center justify-center rounded-full bg-background/60 backdrop-blur-md">
+								<Sparkles class="h-3 w-3 text-primary" />
+							</span>
+						{/if}
+					</div>
+				</button>
+			{/each}
+		</div>
 	{/if}
 </div>
 

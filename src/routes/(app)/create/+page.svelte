@@ -39,7 +39,6 @@
 
 	// ── Template state ──
 	let templates = $state<ApiTemplate[]>([]);
-	let groupedTemplates = $state<Record<string, ApiTemplate[]>>({});
 	let templatesLoading = $state(true);
 	let selectedTemplate = $state<ApiTemplate | null>(null);
 	let placeholderValues = $state<Record<string, string>>({});
@@ -90,7 +89,6 @@
 			if (res.ok) {
 				const data = await res.json();
 				templates = data.templates || [];
-				groupedTemplates = data.grouped || {};
 			}
 		} catch {
 			// Silent - templates are not critical
@@ -243,7 +241,6 @@
 		<Tabs.Content value="templates" class="h-full">
 			<TemplateGrid
 				{templates}
-				{groupedTemplates}
 				loading={templatesLoading}
 				{selectedTemplate}
 				onSelectTemplate={selectTemplate}

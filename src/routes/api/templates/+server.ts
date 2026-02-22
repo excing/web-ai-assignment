@@ -34,16 +34,7 @@ export const GET: RequestHandler = async () => {
                 desc(imageGenTemplate.createdAt)
             );
 
-        // 按分类分组
-        const grouped: Record<string, typeof templates> = {};
-        for (const tpl of templates) {
-            if (!grouped[tpl.category]) {
-                grouped[tpl.category] = [];
-            }
-            grouped[tpl.category].push(tpl);
-        }
-
-        return json({ templates, grouped }, dev ? undefined : {
+        return json({ templates }, dev ? undefined : {
             headers: {
                 'Cache-Control': 'public, max-age=300, stale-while-revalidate=60',
             },
