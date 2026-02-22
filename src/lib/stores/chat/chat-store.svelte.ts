@@ -24,7 +24,7 @@ import {
 	type ChatMessageRecord,
 	type BlobRecord,
 } from '$lib/stores/db';
-import { createTrackedObjectUrl, revokeAllObjectUrls } from '$lib/composables/use-object-urls.svelte';
+import { createTrackedObjectUrl, revokeObjectUrlsByScope, URL_SCOPE } from '$lib/composables/use-object-urls.svelte';
 import { urlToBlob } from '$lib/utils/blob';
 
 export type SessionMeta = Pick<ChatSessionRecord, 'id' | 'title' | 'updatedAt'>;
@@ -71,7 +71,9 @@ export async function getChatSessionList(userId: string): Promise<SessionMeta[]>
 	return sessions.map(({ id, title, updatedAt }) => ({ id, title, updatedAt }));
 }
 
-export { revokeAllObjectUrls as revokeActiveObjectUrls };
+export function revokeActiveObjectUrls(): void {
+	revokeObjectUrlsByScope(URL_SCOPE.CHAT);
+}
 
 // ── Title extraction ──
 
@@ -137,7 +139,7 @@ async function messagesToRecords(sessionId: string, messages: UIMessage[]): Prom
 // ── ChatMessageRecord → UIMessage + Blob restoration ──
 
 async function recordsToMessages(records: ChatMessageRecord[]): Promise<UIMessage[]> {
-	revokeAllObjectUrls();
+	revokeObjectUrlsByScope(URL_SCOPE.CHAT);
 
 	const messages: UIMessage[] = [];
 
@@ -154,7 +156,7 @@ async function recordsToMessages(records: ChatMessageRecord[]): Promise<UIMessag
 			try {
 				const stored = await getBlob(blobId);
 				if (stored) {
-					part.url = createTrackedObjectUrl(stored.data);
+					part.url = createTrackedObjectUrl(stored.data, URL_SCOPE.CHAT);
 					if (stored.mediaType) part.mediaType = stored.mediaType;
 					if (stored.filename) part.filename = stored.filename;
 				}

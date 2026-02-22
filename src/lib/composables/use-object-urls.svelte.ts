@@ -1,28 +1,42 @@
 /**
  * Object URL 生命周期管理
  *
- * 跟踪创建的 object URL，提供统一 revoke 能力。
- * 避免内存泄漏，替代原来分散在各 store 中的手动管理。
+ * 按 scope 隔离的 object URL 池，避免不同模块之间互相 revoke。
  */
 
-let urls: string[] = [];
+/** 各模块使用的 scope 常量 */
+export const URL_SCOPE = {
+	CHAT: 'chat',
+	IMAGE_GEN: 'image-gen',
+} as const;
 
-/** 创建并跟踪一个 object URL */
-export function createTrackedObjectUrl(blob: Blob): string {
+const pools: Record<string, string[]> = {};
+
+function getPool(scope: string): string[] {
+	if (!pools[scope]) pools[scope] = [];
+	return pools[scope];
+}
+
+/** 创建并跟踪一个 object URL（归属指定 scope） */
+export function createTrackedObjectUrl(blob: Blob, scope: string): string {
 	const url = URL.createObjectURL(blob);
-	urls.push(url);
+	getPool(scope).push(url);
 	return url;
 }
 
-/** 释放所有跟踪的 object URL */
-export function revokeAllObjectUrls(): void {
-	for (const url of urls) {
+/** 释放指定 scope 的所有 object URL */
+export function revokeObjectUrlsByScope(scope: string): void {
+	const pool = pools[scope];
+	if (!pool) return;
+	for (const url of pool) {
 		URL.revokeObjectURL(url);
 	}
-	urls = [];
+	pools[scope] = [];
 }
 
-/** 当前跟踪的 URL 数量（调试用） */
-export function trackedUrlCount(): number {
-	return urls.length;
+/** 释放所有 scope 的 object URL（用于登出/用户切换） */
+export function revokeAllObjectUrls(): void {
+	for (const scope of Object.keys(pools)) {
+		revokeObjectUrlsByScope(scope);
+	}
 }

@@ -1,12 +1,10 @@
 /**
  * Image Gen Task Store — 响应式状态 + 持久化编排
  *
- * 替代旧 TaskManager 单例，拆分为：
+ * 架构分层：
  * - task-store (本文件): 响应式状态、持久化、生命周期编排
  * - task-queue: 并发调度
  * - task-api: 纯 API 调用
- *
- * 关键改进：每个 task 独立存为一行 (putImageGenTask)，不再整体 JSON 序列化。
  */
 
 import { toast } from 'svelte-sonner';
@@ -17,6 +15,7 @@ import { IMAGE_GEN, type AspectRatio } from '$lib/config/constants';
 import type { MediaResource } from '$lib/types/media';
 import {
 	putImageGenTask,
+	getImageGenTask,
 	getImageGenTasksByUser,
 	updateImageGenTask,
 	deleteImageGenTask as dbDeleteTask,
@@ -30,11 +29,15 @@ import {
 } from '$lib/stores/db';
 import { callImageGenApi } from './task-api';
 import { createTaskQueue } from './task-queue.svelte';
-import { createTrackedObjectUrl, revokeAllObjectUrls } from '$lib/composables/use-object-urls.svelte';
+import {
+	createTrackedObjectUrl,
+	revokeObjectUrlsByScope,
+	URL_SCOPE,
+} from '$lib/composables/use-object-urls.svelte';
 import { urlToBlob } from '$lib/utils/blob';
 import { openGallery } from '$lib/stores/gallery.svelte';
 
-// ── In-memory task representation ──
+// ── Types ──
 
 export interface GenerationTask {
 	id: string;
@@ -50,7 +53,76 @@ export interface GenerationTask {
 	completedAt?: number;
 }
 
-// ── TaskManager (singleton) ──
+/** MediaResource 附带已持久化的 idb:// 引用，供 taskToRecord 直接使用 */
+type PersistedMediaResource = MediaResource & { _idbRef?: string };
+
+// ── Blob 持久化/恢复工具 ──
+
+/** 将 Blob 保存到 IndexedDB，返回 idb:// 引用 */
+async function saveBlobToIdb(
+	data: Blob,
+	ownerId: string,
+	mediaType?: string,
+	filename?: string | null,
+): Promise<string> {
+	const blobId = generateUUID();
+	const record: BlobRecord = {
+		id: blobId,
+		ownerId,
+		ownerType: 'image-gen-task',
+		data,
+		mediaType: mediaType || data.type,
+		filename: filename ?? null,
+	};
+	await putBlob(record);
+	return IDB_PREFIX + blobId;
+}
+
+/** 从 idb:// 引用恢复 Blob 记录 */
+async function loadBlobFromIdb(idbRef: string): Promise<BlobRecord | null> {
+	const blobId = idbRef.slice(IDB_PREFIX.length);
+	try {
+		return await getBlob(blobId);
+	} catch {
+		return null;
+	}
+}
+
+/** 将 idb:// 引用恢复为 object URL（用于显示） */
+async function idbRefToObjectUrl(idbRef: string): Promise<string | null> {
+	const stored = await loadBlobFromIdb(idbRef);
+	if (!stored) return null;
+	return createTrackedObjectUrl(stored.data, URL_SCOPE.IMAGE_GEN);
+}
+
+/** 下载远程/本地 URL → 持久化到 IndexedDB → 返回显示 URL + idb 引用 */
+async function downloadAndPersistMedia(
+	taskId: string,
+	rawMedia: MediaResource[],
+): Promise<PersistedMediaResource[]> {
+	return Promise.all(
+		rawMedia.map(async (res): Promise<PersistedMediaResource> => {
+			const isRemoteOrData =
+				res.data.startsWith('http://') ||
+				res.data.startsWith('https://') ||
+				res.data.startsWith('data:');
+			if (!isRemoteOrData) return res;
+
+			try {
+				const blob = await urlToBlob(res.data);
+				const mimeType = res.mimeType || blob.type;
+				const idbRef = await saveBlobToIdb(blob, taskId, mimeType, res.filename);
+				const displayUrl = createTrackedObjectUrl(blob, URL_SCOPE.IMAGE_GEN);
+				return { ...res, data: displayUrl, mimeType, _idbRef: idbRef };
+			} catch (err) {
+				console.warn('Failed to download/persist media:', err);
+				return res;
+			}
+		}),
+	);
+}
+
+// ── TaskManager ──
 
 class TaskManager {
 	tasks = $state<GenerationTask[]>([]);
@@ -71,7 +143,7 @@ class TaskManager {
 		return getCurrentUser()?.id ?? null;
 	}
 
-	// ── Load from DB ──
+	// ── Load ──
 
 	async loadFromHistory(): Promise<void> {
 		const userId = this.getUserId();
@@ -89,7 +161,7 @@ class TaskManager {
 		try {
 			const records = await getImageGenTasksByUser(userId);
 			if (records.length > 0) {
-				this.tasks = await Promise.all(records.map((r) => recordToTask(r)));
+				this.tasks = await Promise.all(records.map(recordToTask));
 				this.queue.kick();
 			}
 		} catch (err) {
@@ -115,18 +187,16 @@ class TaskManager {
 			createdAt: Date.now(),
 		};
 
-		// Async preview generation (non-blocking)
+		// 异步生成预览（不阻塞创建流程）
 		if (validFiles.length > 0) {
-			Promise.all(validFiles.map((f) => fileToDataUrl(f))).then((previews) => {
-				this.tasks = this.tasks.map((t) => (t.id === id ? { ...t, attachedPreviews: previews } : t));
-				// Persist previews
+			Promise.all(validFiles.map(fileToDataUrl)).then((previews) => {
+				this.updateTask(id, { attachedPreviews: previews });
 				if (userId) this.persistTask(id);
 			});
 		}
 
 		this.tasks = [task, ...this.tasks];
 
-		// Persist immediately (individual row)
 		if (userId) {
 			taskToRecord(task, userId).then((record) => putImageGenTask(record).catch(console.warn));
 		}
@@ -138,7 +208,8 @@ class TaskManager {
 	// ── Execute ──
 
 	private async executeTask(id: string) {
-		this.updateStatus(id, 'loading');
+		this.updateTask(id, { status: 'loading' });
+		this.persistTask(id);
 
 		const task = this.tasks.find((t) => t.id === id);
 		if (!task) {
@@ -147,73 +218,39 @@ class TaskManager {
 		}
 
 		try {
-			const rawMedia = await callImageGenApi(
-				task.prompt,
-				task.attachedFiles,
-				task.aspectRatio,
-				task.featureKey,
-			);
+			const rawMedia = await callImageGenApi(task.prompt, task.attachedFiles, task.aspectRatio, task.featureKey);
+			const mediaResources = await downloadAndPersistMedia(id, rawMedia);
 
-			// 将远程 URL 下载到本地 Blob，始终使用 blob:// 显示
-			const mediaResources = await Promise.all(
-				rawMedia.map(async (res) => {
-					if (res.data.startsWith('http://') || res.data.startsWith('https://')) {
-						try {
-							const blob = await urlToBlob(res.data);
-							return {
-								...res,
-								data: createTrackedObjectUrl(blob),
-								mimeType: res.mimeType || blob.type,
-							};
-						} catch (err) {
-							console.warn('Failed to download media to local blob:', err);
-							return res;
-						}
-					}
-					return res;
-				}),
-			);
-
-			this.tasks = this.tasks.map((t) =>
-				t.id === id
-					? { ...t, status: 'success' as const, mediaResources, completedAt: Date.now() }
-					: t,
-			);
+			this.updateTask(id, { status: 'success', mediaResources, completedAt: Date.now() });
 			this.persistTask(id);
+			this.showCompletionToast(task, mediaResources);
 
-			const previews: MediaResource[] = (task.attachedPreviews || []).map((p, i) => ({
-				type: 'image' as const,
-				data: p,
-				filename: `参考图 ${i + 1}`,
-			}));
-			const allMedia = [...previews, ...mediaResources];
-
-			toast.success('图片生成完成', {
-				description: `生成了 ${mediaResources.length} 个媒体资源`,
-				action: allMedia.length > 0
-					? {
-							label: '查看',
-							onClick: () => openGallery(allMedia, previews.length),
-						}
-					: undefined,
-			});
-
-			Promise.all([
-				refreshCurrentUser().catch(console.warn),
-				fetchCreditBalance().catch(console.warn),
-			]);
+			refreshCurrentUser().catch(console.warn);
+			fetchCreditBalance().catch(console.warn);
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : '生成失败';
-			this.tasks = this.tasks.map((t) =>
-				t.id === id
-					? { ...t, status: 'error' as const, error: errorMsg, completedAt: Date.now() }
-					: t,
-			);
+			this.updateTask(id, { status: 'error', error: errorMsg, completedAt: Date.now() });
 			this.persistTask(id);
 			toast.error('图片生成失败', { description: errorMsg });
 		} finally {
 			this.queue.taskFinished(id);
 		}
+	}
+
+	private showCompletionToast(task: GenerationTask, mediaResources: MediaResource[]) {
+		const previews: MediaResource[] = (task.attachedPreviews || []).map((p, i) => ({
+			type: 'image' as const,
+			data: p,
+			filename: `参考图 ${i + 1}`,
+		}));
+		const allMedia = [...previews, ...mediaResources];
+
+		toast.success('图片生成完成', {
+			description: `生成了 ${mediaResources.length} 个媒体资源`,
+			action: allMedia.length > 0
+				? { label: '查看', onClick: () => openGallery(allMedia, previews.length) }
+				: undefined,
+		});
 	}
 
 	// ── Mutations ──
@@ -248,16 +285,11 @@ class TaskManager {
 	retryTask(id: string) {
 		const task = this.tasks.find((t) => t.id === id);
 		if (!task || task.status === 'pending' || task.status === 'loading') return;
-		this.tasks = this.tasks.map((t) =>
-			t.id === id
-				? { ...t, status: 'pending' as const, mediaResources: [], error: undefined, completedAt: undefined }
-				: t,
-		);
+		this.updateTask(id, { status: 'pending', mediaResources: [], error: undefined, completedAt: undefined });
 		this.persistTask(id);
 		this.queue.kick();
 	}
 
-	/** Clone a completed task as a brand-new request with identical parameters */
 	cloneTask(id: string) {
 		const source = this.tasks.find((t) => t.id === id);
 		if (!source) return;
@@ -274,11 +306,10 @@ class TaskManager {
 		};
 	}
 
-	// ── Internal helpers ──
+	// ── Internal ──
 
-	private updateStatus(id: string, status: GenerationTask['status']) {
-		this.tasks = this.tasks.map((t) => (t.id === id ? { ...t, status } : t));
-		this.persistTask(id);
+	private updateTask(id: string, patch: Partial<GenerationTask>) {
+		this.tasks = this.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t));
 	}
 
 	private persistTask(id: string) {
@@ -292,11 +323,13 @@ class TaskManager {
 	}
 }
 
-export { revokeAllObjectUrls as revokeImageGenObjectUrls };
+export function revokeImageGenObjectUrls(): void {
+	revokeObjectUrlsByScope(URL_SCOPE.IMAGE_GEN);
+}
 
 export const taskManager = new TaskManager();
 
-// ── Serialization helpers ──
+// ── Serialization: Task ↔ Record ──
 
 function fileToDataUrl(file: File): Promise<string> {
 	return new Promise((resolve, reject) => {
@@ -307,83 +340,47 @@ function fileToDataUrl(file: File): Promise<string> {
 	});
 }
 
+/**
+ * 将 URL 序列化为 idb:// 引用。
+ * 若 res 上已有 _idbRef（executeTask 预持久化），直接使用；
+ * 否则将 blob:/data: URL 转换为 IndexedDB blob。
+ */
+async function serializeUrl(url: string, ownerId: string, idbRef?: string, mimeType?: string, filename?: string): Promise<string> {
+	if (idbRef) return idbRef;
+	if (!url || url.startsWith(IDB_PREFIX)) return url;
+	if (url.startsWith('data:') || url.startsWith('blob:')) {
+		const blob = await urlToBlob(url);
+		return saveBlobToIdb(blob, ownerId, mimeType || blob.type, filename);
+	}
+	return url;
+}
+
 async function taskToRecord(task: GenerationTask, userId: string): Promise<ImageGenTaskRecord> {
-	// Serialize mediaResources — extract data/blob URLs to blobs store
-	const serializedMedia: MediaResource[] = [];
-	for (const res of task.mediaResources) {
-		if (!res.data || res.data.startsWith(IDB_PREFIX)) {
-			serializedMedia.push(res);
-			continue;
-		}
-		if (res.data.startsWith('data:') || res.data.startsWith('blob:')) {
+	// 查询已有记录，复用已持久化的 blob 引用，避免重复写入
+	const existing = await getImageGenTask(task.id).catch(() => null);
+	const existingFileRefs: string[] = existing ? JSON.parse(existing.attachedFileRefs || '[]') : [];
+
+	// 序列化 mediaResources
+	const serializedMedia = await Promise.all(
+		task.mediaResources.map(async (res) => {
+			const idbRef = (res as PersistedMediaResource)._idbRef;
 			try {
-				const blob = await urlToBlob(res.data);
-				const blobId = generateUUID();
-				const record: BlobRecord = {
-					id: blobId,
-					ownerId: task.id,
-					ownerType: 'image-gen-task',
-					data: blob,
-					mediaType: res.mimeType || blob.type,
-					filename: res.filename || null,
-				};
-				await putBlob(record);
-				serializedMedia.push({ ...res, data: IDB_PREFIX + blobId });
+				const data = await serializeUrl(res.data, task.id, idbRef, res.mimeType, res.filename);
+				return { type: res.type, data, mimeType: res.mimeType, filename: res.filename } as MediaResource;
 			} catch {
-				serializedMedia.push(res);
+				return res;
 			}
-		} else {
-			serializedMedia.push(res);
-		}
-	}
+		}),
+	);
 
-	// Serialize attachedFiles → blob refs
-	const fileRefs: string[] = [];
-	if (task.attachedFiles) {
-		for (const file of task.attachedFiles) {
-			const blobId = generateUUID();
-			const record: BlobRecord = {
-				id: blobId,
-				ownerId: task.id,
-				ownerType: 'image-gen-task',
-				data: file,
-				mediaType: file.type,
-				filename: file.name,
-			};
-			await putBlob(record);
-			fileRefs.push(IDB_PREFIX + blobId);
-		}
-	}
-
-	// Serialize attachedPreviews → blob refs
-	const previewRefs: string[] = [];
-	if (task.attachedPreviews) {
-		for (const preview of task.attachedPreviews) {
-			if (preview.startsWith(IDB_PREFIX)) {
-				previewRefs.push(preview);
-				continue;
-			}
-			if (preview.startsWith('data:') || preview.startsWith('blob:')) {
-				try {
-					const blob = await urlToBlob(preview);
-					const blobId = generateUUID();
-					const record: BlobRecord = {
-						id: blobId,
-						ownerId: task.id,
-						ownerType: 'image-gen-task',
-						data: blob,
-						mediaType: blob.type,
-						filename: null,
-					};
-					await putBlob(record);
-					previewRefs.push(IDB_PREFIX + blobId);
-				} catch {
-					previewRefs.push(preview);
-				}
-			} else {
-				previewRefs.push(preview);
-			}
-		}
+	// 序列化 attachedFiles（已有 idb 引用则复用）
+	let fileRefs: string[] = [];
+	if (existingFileRefs.length > 0 && existingFileRefs.every((r) => r.startsWith(IDB_PREFIX))) {
+		fileRefs = existingFileRefs;
+	} else if (task.attachedFiles) {
+		fileRefs = await Promise.all(
+			task.attachedFiles.map((f) => saveBlobToIdb(f, task.id, f.type, f.name)),
+		);
 	}
 
 	return {
@@ -393,7 +390,7 @@ async function taskToRecord(task: GenerationTask, userId: string): Promise<Image
 		status: task.status,
 		mediaResources: JSON.stringify(serializedMedia),
 		attachedFileRefs: JSON.stringify(fileRefs),
-		attachedPreviewRefs: JSON.stringify(previewRefs),
+		attachedPreviewRefs: '[]', // 预览从 attachedFiles 派生，不再单独存储
 		aspectRatio: task.aspectRatio ?? null,
 		featureKey: task.featureKey ?? null,
 		error: task.error ?? null,
@@ -415,68 +412,47 @@ async function recordToTask(record: ImageGenTaskRecord): Promise<GenerationTask>
 		completedAt: record.completedAt ?? undefined,
 	};
 
-	// Restore mediaResources
+	// 恢复 mediaResources
 	const rawMedia: MediaResource[] = JSON.parse(record.mediaResources || '[]');
 	task.mediaResources = await Promise.all(
 		rawMedia.map(async (res) => {
-			if (!res.data.startsWith(IDB_PREFIX)) return res;
-			const blobId = res.data.slice(IDB_PREFIX.length);
-			try {
-				const stored = await getBlob(blobId);
-				if (stored) {
-					return {
-						...res,
-						data: createTrackedObjectUrl(stored.data),
-						mimeType: stored.mediaType || res.mimeType,
-						filename: stored.filename || res.filename,
-					};
-				}
-			} catch (err) {
-				console.warn('Failed to restore media resource:', blobId, err);
-			}
-			return res;
+			if (!res.data?.startsWith(IDB_PREFIX)) return res;
+			const stored = await loadBlobFromIdb(res.data);
+			if (!stored) return res;
+			return {
+				...res,
+				data: createTrackedObjectUrl(stored.data, URL_SCOPE.IMAGE_GEN),
+				mimeType: stored.mediaType || res.mimeType,
+				filename: stored.filename || res.filename,
+			};
 		}),
 	);
 
-	// Restore attachedFiles
+	// 恢复 attachedFiles → File 对象（用于重试/克隆）
 	const fileRefs: string[] = JSON.parse(record.attachedFileRefs || '[]');
-	if (fileRefs.length > 0) {
-		const files: File[] = [];
-		for (const ref of fileRefs) {
-			if (!ref.startsWith(IDB_PREFIX)) continue;
-			const blobId = ref.slice(IDB_PREFIX.length);
-			try {
-				const stored = await getBlob(blobId);
-				if (stored) {
-					files.push(new File([stored.data], stored.filename || 'file', { type: stored.mediaType }));
-				}
-			} catch (err) {
-				console.warn('Failed to restore attached file:', blobId, err);
-			}
-		}
-		if (files.length > 0) task.attachedFiles = files;
+	const files: File[] = [];
+	for (const ref of fileRefs) {
+		if (!ref.startsWith(IDB_PREFIX)) continue;
+		const stored = await loadBlobFromIdb(ref);
+		if (stored) files.push(new File([stored.data], stored.filename || 'file', { type: stored.mediaType }));
+	}
+	if (files.length > 0) {
+		task.attachedFiles = files;
+		// 预览直接从 File 派生（File extends Blob），无需单独存储
+		task.attachedPreviews = files.map((f) => createTrackedObjectUrl(f, URL_SCOPE.IMAGE_GEN));
 	}
 
-	// Restore attachedPreviews
-	const previewRefs: string[] = JSON.parse(record.attachedPreviewRefs || '[]');
-	if (previewRefs.length > 0) {
-		const previews: string[] = [];
-		for (const ref of previewRefs) {
-			if (!ref.startsWith(IDB_PREFIX)) {
-				previews.push(ref);
-				continue;
+	// 向后兼容：旧数据可能只有 previewRefs 没有 fileRefs
+	if (!task.attachedPreviews) {
+		const previewRefs: string[] = JSON.parse(record.attachedPreviewRefs || '[]');
+		if (previewRefs.length > 0) {
+			const previews: string[] = [];
+			for (const ref of previewRefs) {
+				const url = ref.startsWith(IDB_PREFIX) ? await idbRefToObjectUrl(ref) : ref;
+				if (url) previews.push(url);
 			}
-			const blobId = ref.slice(IDB_PREFIX.length);
-			try {
-				const stored = await getBlob(blobId);
-				if (stored) {
-					previews.push(createTrackedObjectUrl(stored.data));
-				}
-			} catch (err) {
-				console.warn('Failed to restore preview:', blobId, err);
-			}
+			if (previews.length > 0) task.attachedPreviews = previews;
 		}
-		if (previews.length > 0) task.attachedPreviews = previews;
 	}
 
 	return task;
