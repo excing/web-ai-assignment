@@ -5,6 +5,7 @@
  * 全新 schema（version 1）：chatSessions, chatMessages, imageGenTasks, blobs。
  */
 
+import { dev } from '$app/environment';
 import { DB_NAME, DB_VERSION, STORE } from './schema';
 
 let dbInstance: IDBDatabase | null = null;
@@ -42,6 +43,11 @@ export function openDB(): Promise<IDBDatabase> {
 				dbInstance = null;
 			};
 			resolve(dbInstance);
+
+			// 生产环境请求持久化存储，防止浏览器在存储压力下回收 IndexedDB 数据
+			if (!dev && navigator.storage?.persist) {
+				navigator.storage.persist().catch(() => {});
+			}
 		};
 
 		request.onerror = () => reject(request.error);
