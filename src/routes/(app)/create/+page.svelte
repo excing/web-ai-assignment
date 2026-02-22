@@ -42,6 +42,7 @@
 	let templatesLoading = $state(true);
 	let selectedTemplate = $state<ApiTemplate | null>(null);
 	let placeholderValues = $state<Record<string, string>>({});
+	let selectedCategory = $state<string | null>(null);
 
 	// ── Derived ──
 	let user = $derived(getCurrentUser());
@@ -50,6 +51,12 @@
 	let activeTasks = $derived(tasks.filter((t) => t.status === 'pending' || t.status === 'loading'));
 	let completedTasks = $derived(tasks.filter((t) => t.status === 'success' || t.status === 'error'));
 	let hasActiveWork = $derived(activeTasks.length > 0);
+
+	// ── Template category filter ──
+	let categories = $derived([...new Set(templates.map((t) => t.category))]);
+	let filteredTemplates = $derived(
+		selectedCategory ? templates.filter((t) => t.category === selectedCategory) : templates
+	);
 
 	// ── Template-derived ──
 	let placeholders = $derived(selectedTemplate ? extractPlaceholders(selectedTemplate.prompt) : []);
@@ -240,7 +247,10 @@
 
 		<Tabs.Content value="templates" class="h-full">
 			<TemplateGrid
-				{templates}
+				templates={filteredTemplates}
+				{categories}
+				{selectedCategory}
+				onSelectCategory={(cat) => (selectedCategory = cat)}
 				loading={templatesLoading}
 				{selectedTemplate}
 				onSelectTemplate={selectTemplate}

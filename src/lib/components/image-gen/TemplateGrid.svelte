@@ -1,11 +1,15 @@
 <script lang="ts">
 	import { Skeleton } from '$lib/components/ui/skeleton';
+	import * as Select from '$lib/components/ui/select';
 	import { Sparkles } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import type { ApiTemplate } from './types';
 
 	interface Props {
 		templates: ApiTemplate[];
+		categories: string[];
+		selectedCategory: string | null;
+		onSelectCategory: (cat: string | null) => void;
 		loading: boolean;
 		selectedTemplate: ApiTemplate | null;
 		onSelectTemplate: (tpl: ApiTemplate) => void;
@@ -13,17 +17,41 @@
 
 	let {
 		templates,
+		categories,
+		selectedCategory,
+		onSelectCategory,
 		loading,
 		selectedTemplate,
 		onSelectTemplate,
 	}: Props = $props();
+
+	let showFilter = $derived(categories.length > 1);
 </script>
 
 <div class="mx-auto max-w-2xl px-4 py-5 lg:max-w-3xl">
 	<!-- Header -->
-	<div class="mb-5">
-		<h2 class="text-lg font-semibold tracking-tight text-foreground">创作模板</h2>
-		<p class="mt-0.5 text-sm text-muted-foreground">选择一个模板快速开始，或直接输入你的描述</p>
+	<div class="mb-5 flex items-center justify-between gap-4">
+		<div>
+			<h2 class="text-lg font-semibold tracking-tight text-foreground">创作模板</h2>
+			<p class="mt-0.5 text-sm text-muted-foreground">选择一个模板快速开始，或直接输入你的描述</p>
+		</div>
+		{#if showFilter}
+			<Select.Root
+				type="single"
+				value={selectedCategory ?? ''}
+				onValueChange={(v) => onSelectCategory(v || null)}
+			>
+				<Select.Trigger class="h-8 w-auto min-w-24 gap-1 px-2.5 text-xs">
+					{selectedCategory ?? '全部'}
+				</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="" label="全部" />
+					{#each categories as cat}
+						<Select.Item value={cat} label={cat} />
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		{/if}
 	</div>
 
 	{#if loading}
