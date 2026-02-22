@@ -345,10 +345,32 @@ export class ImageGenerationService {
 			temperature: this.temperature,
 			topP: this.topP,
 			billingDescription: '图像生成',
+			skipAutoCharge: true,
 		});
 
+		const mediaResources = await this.extractMediaResources(
+			result.text,
+			result.files || [],
+			result.content || [],
+			result.response?.body
+		);
+
+		// 仅在成功生成图片时扣费
+		if (mediaResources.length > 0) {
+			const usage = {
+				promptTokens: result.usage.inputTokens || 0,
+				completionTokens: result.usage.outputTokens || 0,
+			};
+			await this.base.manualCharge(
+				usage,
+				`图像生成扣费 - 输入${usage.promptTokens}tokens/输出${usage.completionTokens}tokens`
+			);
+		} else {
+			log.info('图像生成请求成功但未产出图片，跳过扣费');
+		}
+
 		return {
-			text: result.text.replace(/data:(?:image|video|audio)\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]+/g, '[Base64 File]'), // 替换 Base64 编码的多媒体资源, mediaResources 里已有相同的数据
+			text: result.text.replace(/data:(?:image|video|audio)\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]+/g, '[Base64 File]'),
 			finishReason: result.finishReason,
 			usage: {
 				promptTokens: result.usage.inputTokens || 0,
@@ -356,12 +378,7 @@ export class ImageGenerationService {
 				totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
 			},
 			reasoning: result.reasoningText,
-			mediaResources: await this.extractMediaResources(
-				result.text,
-				result.files || [],
-				result.content || [],
-				result.response?.body
-			)
+			mediaResources
 		};
 	}
 

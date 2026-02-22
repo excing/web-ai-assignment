@@ -57,6 +57,8 @@ export interface GenerateCallOptions {
 	topP?: number;
 	/** 计费描述 */
 	billingDescription?: string;
+	/** 跳过自动扣费（调用方需自行调用 manualCharge 完成扣费） */
+	skipAutoCharge?: boolean;
 }
 
 // ─── BaseAIService ───
@@ -161,6 +163,19 @@ export class BaseAIService {
 	}
 
 	/**
+	 * 手动扣费（配合 skipAutoCharge 使用）
+	 *
+	 * 当调用方需要在获取结果并验证后再决定是否扣费时，
+	 * 可在 executeGenerate 中设置 skipAutoCharge=true，
+	 * 然后在合适的时机调用此方法完成扣费。
+	 */
+	async manualCharge(usage: { promptTokens: number; completionTokens: number }, description: string) {
+		if (!this.billingService) return;
+		const config = this.getProxyConfig();
+		await this.billingService.autoCharge(config, { usage, description });
+	}
+
+	/**
 	 * 非流式 AI 请求
 	 *
 	 * 完整流程：计费预检 → generateText → 扣费 + 健康上报
@@ -193,7 +208,7 @@ export class BaseAIService {
 
 			await reportAssignmentSuccess(config.assignmentId, isBackup);
 
-			if (this.billingService) {
+			if (this.billingService && !opts.skipAutoCharge) {
 				await this.billingService.autoCharge(config, {
 					usage: {
 						promptTokens: result.usage.inputTokens || 0,
