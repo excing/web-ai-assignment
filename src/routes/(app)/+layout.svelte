@@ -40,5 +40,5 @@
 </Tooltip.Provider>
 
 {#if gallery.isOpen}
-    <ImageGallery images={gallery.images} initialIndex={gallery.initialIndex} onClose={closeGallery} />
+    <ImageGallery images={gallery.images} initialIndex={gallery.initialIndex} caption={gallery.caption} onClose={closeGallery} />
 {/if}

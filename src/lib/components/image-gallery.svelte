@@ -1,14 +1,16 @@
 <script lang="ts">
-	import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from 'lucide-svelte';
+	import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, Copy } from 'lucide-svelte';
+	import { toast } from 'svelte-sonner';
 	import type { MediaResource } from '$lib/types/media';
 
 	interface Props {
 		images: MediaResource[];
 		initialIndex?: number;
+		caption?: string;
 		onClose: () => void;
 	}
 
-	let { images, initialIndex = 0, onClose }: Props = $props();
+	let { images, initialIndex = 0, caption, onClose }: Props = $props();
 
 	let currentIndex = $state(initialIndex);
 	let currentImage = $derived(images[currentIndex]);
@@ -51,6 +53,17 @@
 
 	// ── UI 显隐 ──
 	let chromeVisible = $state(true);
+	let captionExpanded = $state(false);
+
+	async function copyCaption() {
+		if (!caption) return;
+		try {
+			await navigator.clipboard.writeText(caption);
+			toast.success('已复制提示词');
+		} catch {
+			toast.error('复制失败');
+		}
+	}
 
 	function resetTransform() {
 		scale = 1;
@@ -416,6 +429,35 @@
 			</button>
 		</div>
 	</div>
+
+	<!-- ── 底部 caption ── -->
+	{#if caption}
+		<div
+			class="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center px-4 transition-opacity duration-200 {chromeVisible ? 'opacity-100' : 'opacity-0'}"
+			style="padding-bottom: {images.length > 1 ? '5.8rem' : '0.75rem'}"
+		>
+			<div class="pointer-events-auto mx-auto flex max-w-2xl items-start gap-2 rounded-xl bg-white/10 px-3 py-2 backdrop-blur-xl">
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div
+					class="min-w-0 flex-1 cursor-pointer select-text"
+					onclick={(e) => { e.stopPropagation(); captionExpanded = !captionExpanded; }}
+					onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); captionExpanded = !captionExpanded; } }}
+				>
+					<p
+						class="text-sm leading-relaxed text-white/90 {captionExpanded ? '' : 'line-clamp-1'}"
+					>
+						{caption}
+					</p>
+				</div>
+				<button
+					class="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-white/80"
+					onclick={(e) => { e.stopPropagation(); copyCaption(); }}
+				>
+					<Copy class="h-3 w-3" />
+				</button>
+			</div>
+		</div>
+	{/if}
 
 	<!-- ── 底部缩略图 ── -->
 	{#if images.length > 1}

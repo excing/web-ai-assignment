@@ -28,7 +28,7 @@
 		completedTasks: GenerationTask[];
 		stats: { success: number };
 		onSwitchToTemplates: () => void;
-		onOpenGallery: (images: MediaResource[], index: number) => void;
+		onOpenGallery: (images: MediaResource[], index: number, caption?: string) => void;
 		onDownloadImage: (data: string, filename: string, index: number) => void;
 	}
 
@@ -109,7 +109,7 @@
 		<div class="flex flex-shrink-0 gap-1">
 			{#each task.attachedPreviews as preview, i}
 				<button
-					onclick={() => onOpenGallery(mergedGallery(task), i)}
+					onclick={() => onOpenGallery(mergedGallery(task), i, task.prompt)}
 					class="overflow-hidden rounded-md border border-border/50 transition-opacity hover:opacity-80"
 				>
 					<img src={preview} alt="参考图 {i + 1}" class="h-6 w-6 object-cover" />
@@ -159,7 +159,7 @@
 								<div class="flex gap-1">
 									{#each task.attachedPreviews as preview, i}
 										<button
-											onclick={() => onOpenGallery(previewsToMediaResources(task.attachedPreviews || []), i)}
+											onclick={() => onOpenGallery(previewsToMediaResources(task.attachedPreviews || []), i, task.prompt)}
 											class="overflow-hidden rounded-md border transition-opacity hover:opacity-80"
 										>
 											<img src={preview} alt="参考图 {i + 1}" class="h-8 w-8 object-cover" />
@@ -240,7 +240,7 @@
 								{#each task.mediaResources as resource, index}
 									{#if resource.type === 'image'}
 										<div class="group/item relative overflow-hidden rounded-xl border border-border/30 bg-card {task.mediaResources.length === 3 && index === 0 ? 'row-span-2' : ''}">
-											<button class="block h-full w-full" onclick={() => onOpenGallery(mergedGallery(task), inputCount(task) + index)}>
+											<button class="block h-full w-full" onclick={() => onOpenGallery(mergedGallery(task), inputCount(task) + index, task.prompt)}>
 												<img
 													src={resource.data}
 													alt={resource.filename || `生成的图片 ${index + 1}`}
@@ -256,7 +256,7 @@
 										</div>
 									{:else if resource.type === 'video'}
 										<div class="group/item relative overflow-hidden rounded-xl border border-border/30 bg-card {task.mediaResources.length === 3 && index === 0 ? 'row-span-2' : ''}">
-											<button class="block h-full w-full" aria-label="查看视频" onclick={() => onOpenGallery(mergedGallery(task), inputCount(task) + index)}>
+											<button class="block h-full w-full" aria-label="查看视频" onclick={() => onOpenGallery(mergedGallery(task), inputCount(task) + index, task.prompt)}>
 												<video src={resource.data} class="h-full w-full object-cover transition-transform duration-500 group-hover/item:scale-105" style="aspect-ratio: {task.mediaResources.length === 1 ? 'auto' : '1/1'}; {task.mediaResources.length === 1 ? 'max-height: 500px;' : 'min-height: 120px;'}">
 													<track kind="captions" />
 												</video>
