@@ -147,11 +147,31 @@ class TaskManager {
 		}
 
 		try {
-			const mediaResources = await callImageGenApi(
+			const rawMedia = await callImageGenApi(
 				task.prompt,
 				task.attachedFiles,
 				task.aspectRatio,
 				task.featureKey,
+			);
+
+			// 将远程 URL 下载到本地 Blob，始终使用 blob:// 显示
+			const mediaResources = await Promise.all(
+				rawMedia.map(async (res) => {
+					if (res.data.startsWith('http://') || res.data.startsWith('https://')) {
+						try {
+							const blob = await urlToBlob(res.data);
+							return {
+								...res,
+								data: createTrackedObjectUrl(blob),
+								mimeType: res.mimeType || blob.type,
+							};
+						} catch (err) {
+							console.warn('Failed to download media to local blob:', err);
+							return res;
+						}
+					}
+					return res;
+				}),
 			);
 
 			this.tasks = this.tasks.map((t) =>
