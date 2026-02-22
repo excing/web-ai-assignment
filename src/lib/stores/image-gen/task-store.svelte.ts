@@ -285,7 +285,7 @@ class TaskManager {
 	retryTask(id: string) {
 		const task = this.tasks.find((t) => t.id === id);
 		if (!task || task.status === 'pending' || task.status === 'loading') return;
-		this.updateTask(id, { status: 'pending', mediaResources: [], error: undefined, completedAt: undefined });
+		this.updateTask(id, { status: 'pending', mediaResources: [], error: undefined, createdAt: Date.now(), completedAt: undefined });
 		this.persistTask(id);
 		this.queue.kick();
 	}
