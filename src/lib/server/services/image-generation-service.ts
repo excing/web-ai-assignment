@@ -148,8 +148,9 @@ export class ImageGenerationService {
 
 	/**
 	 * 提取文本中的多媒体资源，全部上传到 R2 返回 HTTP URL
+	 * 同时将文本中的原始资源引用替换为 R2 地址
 	 */
-	private async extractMediaResources(text: string, files: Array<GeneratedFile>, content: Array<ContentPart<ToolSet>>, responseBody?: any): Promise<MediaResource[]> {
+	private async extractMediaResources(text: string, files: Array<GeneratedFile>, content: Array<ContentPart<ToolSet>>, responseBody?: any): Promise<{ text: string; resources: MediaResource[] }> {
 		const resources: MediaResource[] = [];
 
 		// 1. 提取生成的文件（来自 AI SDK）→ 上传 R2
@@ -171,7 +172,7 @@ export class ImageGenerationService {
 			}
 		}
 
-		if (resources.length > 0) return resources;
+		if (resources.length > 0) return { text, resources };
 
 		// 2. 从 content 中提取多媒体内容 → 上传 R2
 		if (content && content.length > 0) {
@@ -194,7 +195,7 @@ export class ImageGenerationService {
 			}
 		}
 
-		if (resources.length > 0) return resources;
+		if (resources.length > 0) return { text, resources };
 
 		// 2.5 从 response.body 提取 (某些 provider 如 OpenRouter/Gemini 将图片放在 choices[].message.images[])
 		try {
@@ -235,7 +236,10 @@ export class ImageGenerationService {
 			log.info(`Extracting images from response.body failed: ${error}`);
 		}
 
-		if (resources.length > 0) return resources;
+		if (resources.length > 0) return { text, resources };
+
+		// 原始 URL → R2 URL 的替换映射（仅用于从文本中提取的资源）
+		const urlReplacements = new Map<string, string>();
 
 		// 收集所有需要下载的 URL 及其元数据，最后统一去重下载
 		const pendingDownloads: Array<{ url: string; filename?: string }> = [];
@@ -244,7 +248,7 @@ export class ImageGenerationService {
 		const base64Regex = /data:(image|video|audio)\/([a-zA-Z0-9+.-]+);base64,([A-Za-z0-9+/=]+)/g;
 		let match;
 		while ((match = base64Regex.exec(text)) !== null) {
-			const [, mediaType, format, b64] = match;
+			const [fullMatch, mediaType, format, b64] = match;
 			const mimeType = `${mediaType}/${format}`;
 			log.info(`found base64 ${mediaType}`);
 			try {
@@ -255,6 +259,7 @@ export class ImageGenerationService {
 					data: url,
 					mimeType,
 				});
+				urlReplacements.set(fullMatch, url);
 			} catch (err) {
 				log.error('R2 upload failed for inline base64', err instanceof Error ? err : undefined);
 			}
@@ -305,6 +310,7 @@ export class ImageGenerationService {
 					log.info(`downloading: ${url}`);
 					const result = await this.downloadAndUploadToR2(url);
 					if (result) {
+						urlReplacements.set(url, result.data);
 						return {
 							type: this.getMediaType(result.mimeType),
 							data: result.data,
@@ -319,7 +325,13 @@ export class ImageGenerationService {
 			resources.push(...downloadResults.filter((r): r is MediaResource => r !== null));
 		}
 
-		return resources;
+		// 将文本中的原始资源引用替换为 R2 地址
+		let replacedText = text;
+		for (const [original, r2Url] of urlReplacements) {
+			replacedText = replacedText.replaceAll(original, r2Url);
+		}
+
+		return { text: replacedText, resources };
 	}
 
 	/**
@@ -348,7 +360,7 @@ export class ImageGenerationService {
 			skipAutoCharge: true,
 		});
 
-		const mediaResources = await this.extractMediaResources(
+		const { text: processedText, resources: mediaResources } = await this.extractMediaResources(
 			result.text,
 			result.files || [],
 			result.content || [],
@@ -370,7 +382,7 @@ export class ImageGenerationService {
 		}
 
 		return {
-			text: result.text.replace(/data:(?:image|video|audio)\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]+/g, '[Base64 File]'),
+			text: processedText,
 			finishReason: result.finishReason,
 			usage: {
 				promptTokens: result.usage.inputTokens || 0,
