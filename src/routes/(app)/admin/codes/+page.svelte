@@ -9,6 +9,7 @@
         Ticket, Plus, Copy, Check, Loader2, Eye, Ban,
     } from "lucide-svelte";
     import { toast } from "svelte-sonner";
+    import { copyToClipboard } from "$lib/utils/clipboard";
     import { PAGINATION } from "$lib/config/constants";
     import Pagination from "$lib/components/common/Pagination.svelte";
     import CodeGenerateDialog from "$lib/components/admin/CodeGenerateDialog.svelte";
@@ -113,13 +114,10 @@
     }
 
     async function copyCode(code: string, id: string) {
-        try {
-            await navigator.clipboard.writeText(code);
+        const ok = await copyToClipboard(code);
+        if (ok) {
             copiedId = id;
-            toast.success("已复制到剪贴板");
             setTimeout(() => { copiedId = null; }, 2000);
-        } catch {
-            toast.error("复制失败");
         }
     }
 

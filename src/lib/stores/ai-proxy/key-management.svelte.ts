@@ -3,6 +3,7 @@
  */
 
 import { toast } from 'svelte-sonner';
+import { copyToClipboard } from '$lib/utils/clipboard';
 import { aiProxyProxiesStore } from './proxies.svelte';
 
 class AiProxyKeyManagementStore {
@@ -80,13 +81,10 @@ class AiProxyKeyManagementStore {
 	async copyKey(proxyId: string) {
 		const key = this.revealedKeys.get(proxyId);
 		if (!key) return;
-		try {
-			await navigator.clipboard.writeText(key);
+		const ok = await copyToClipboard(key);
+		if (ok) {
 			this.copiedKeyId = proxyId;
-			toast.success('已复制到剪贴板');
 			setTimeout(() => { this.copiedKeyId = null; }, 2000);
-		} catch {
-			toast.error('复制失败');
 		}
 	}
 

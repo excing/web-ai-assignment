@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, Copy } from 'lucide-svelte';
-	import { toast } from 'svelte-sonner';
+	import { copyToClipboard } from '$lib/utils/clipboard';
 	import type { MediaResource } from '$lib/types/media';
 
 	interface Props {
@@ -57,12 +57,7 @@
 
 	async function copyCaption() {
 		if (!caption) return;
-		try {
-			await navigator.clipboard.writeText(caption);
-			toast.success('已复制提示词');
-		} catch {
-			toast.error('复制失败');
-		}
+		await copyToClipboard(caption);
 	}
 
 	function resetTransform() {

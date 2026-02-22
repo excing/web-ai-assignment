@@ -18,7 +18,7 @@
 		AlertTriangle,
 		Eraser,
 	} from 'lucide-svelte';
-	import { toast } from 'svelte-sonner';
+	import { copyToClipboard } from '$lib/utils/clipboard';
 	import { taskManager, type GenerationTask } from '$lib/stores/image-gen/task-store.svelte';
 	import type { MediaResource } from '$lib/types/media';
 
@@ -76,12 +76,7 @@
 	}
 
 	async function copyPrompt(prompt: string) {
-		try {
-			await navigator.clipboard.writeText(prompt);
-			toast.success('已复制提示词');
-		} catch {
-			toast.error('复制失败');
-		}
+		await copyToClipboard(prompt);
 	}
 </script>
 
