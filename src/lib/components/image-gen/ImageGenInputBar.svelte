@@ -70,6 +70,12 @@
 		}
 	}
 
+	// Sync height when input changes programmatically (template select, clear, etc.)
+	$effect(() => {
+		input;
+		autoResize();
+	});
+
 	function handleInput(e: Event & { currentTarget: EventTarget & HTMLTextAreaElement }) {
 		onInput(e.currentTarget.value);
 		autoResize();

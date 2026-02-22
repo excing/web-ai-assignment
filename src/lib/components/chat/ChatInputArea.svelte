@@ -1,6 +1,5 @@
 <script lang="ts">
     import { Button } from "$lib/components/ui/button";
-    import { Textarea } from "$lib/components/ui/textarea";
     import { cn } from "$lib/utils";
     import { Send, Loader2, Paperclip, X } from "lucide-svelte";
     import { UI, CHAT_ATTACHMENTS } from "$lib/config/constants";
@@ -42,6 +41,12 @@
         }
     }
 
+    // Sync height when input changes programmatically (clear, quick prompt, etc.)
+    $effect(() => {
+        input;
+        autoResize();
+    });
+
     function handleKeydown(e: KeyboardEvent) {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -60,7 +65,7 @@
     }
 </script>
 
-<div class="border-t bg-background px-4 py-4">
+<div class="border-t bg-background/95 px-4 py-3 backdrop-blur-sm">
     <form
         class="mx-auto max-w-3xl"
         onsubmit={(e) => {
@@ -91,37 +96,35 @@
         {/if}
 
         <div class={cn(
-            "relative flex items-end gap-2 rounded-2xl border bg-background p-2 shadow-sm focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20",
-            isDragging && "border-primary/50 ring-2 ring-primary/20"
+            "relative flex items-end gap-1.5 rounded-2xl border bg-card p-1.5 transition-all focus-within:border-foreground/20 focus-within:shadow-sm",
+            isDragging && "border-foreground/20 shadow-sm"
         )}>
             <!-- 附件按钮 -->
-            <Button
+            <button
                 type="button"
-                variant="ghost"
-                size="icon"
-                class="h-10 w-10 flex-shrink-0 rounded-xl text-muted-foreground hover:text-foreground"
+                class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
                 disabled={!isOnline || isSubmitting || isStreaming || pendingFiles.length >= CHAT_ATTACHMENTS.MAX_FILES}
                 onclick={onOpenFilePicker}
             >
                 <Paperclip class="h-4 w-4" />
-            </Button>
+            </button>
 
-            <Textarea
-                bind:ref={textareaRef}
-                bind:value={input}
-                oninput={autoResize}
+            <textarea
+                bind:this={textareaRef}
+                value={input}
+                oninput={(e) => { input = e.currentTarget.value; autoResize(); }}
                 onkeydown={handleKeydown}
                 onpaste={onPaste}
-                placeholder={isOnline ? "输入消息... (Enter 发送, Shift+Enter 换行)" : "网络已断开..."}
-                class="min-h-[44px] max-h-[200px] flex-1 resize-none border-0 bg-transparent p-2 shadow-none focus-visible:ring-0"
+                placeholder={isOnline ? "输入消息..." : "网络已断开..."}
                 rows={1}
                 disabled={!isOnline || isSubmitting || isStreaming}
-            />
+                class="min-h-[36px] max-h-[160px] flex-1 resize-none border-0 bg-transparent px-1 py-2 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50"
+            ></textarea>
 
             <Button
                 type="submit"
                 size="icon"
-                class="h-10 w-10 flex-shrink-0 rounded-xl"
+                class="h-9 w-9 flex-shrink-0 rounded-xl"
                 disabled={!canSend}
             >
                 {#if isSubmitting && !isStreaming}
