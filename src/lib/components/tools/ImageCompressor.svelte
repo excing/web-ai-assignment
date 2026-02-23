@@ -1,8 +1,10 @@
 <script lang="ts">
-	import { Upload, Download, Trash2, Image as ImageIcon, Loader2, RefreshCw } from 'lucide-svelte';
+	import { Upload, Download, Trash2, Image as ImageIcon, Loader2, RefreshCw, Eye } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button';
 	import Compressor from 'compressorjs';
+	import { openGallery } from '$lib/stores/gallery.svelte';
+	import type { MediaResource } from '$lib/types/media';
 
 	// ── State ──
 	interface ImageItem {
@@ -217,6 +219,16 @@
 		toast.success(`已下载 ${compressed.length} 张图片`);
 	}
 
+	// ── Preview ──
+	function previewItem(item: ImageItem) {
+		const resources: MediaResource[] = [];
+		resources.push({ type: 'image', data: item.previewUrl, filename: `原图 - ${item.file.name}` });
+		if (item.compressedUrl) {
+			resources.push({ type: 'image', data: item.compressedUrl, filename: `压缩后 - ${item.file.name}` });
+		}
+		openGallery(resources, item.compressedUrl ? 1 : 0);
+	}
+
 	// ── Drag & Drop ──
 	let isDragging = $state(false);
 
@@ -393,6 +405,13 @@
 							</div>
 
 							<div class="flex shrink-0 items-center gap-1">
+								<button
+									onclick={() => previewItem(item)}
+									class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+									title="预览"
+								>
+									<Eye class="h-3.5 w-3.5" />
+								</button>
 								{#if item.compressed}
 									<button
 										onclick={() => recompressOne(item)}
