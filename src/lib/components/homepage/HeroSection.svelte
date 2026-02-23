@@ -62,9 +62,9 @@
 				</div>
 				<!-- Generated result grid -->
 				<div class="mt-3 grid grid-cols-3 gap-2">
-					<img src="https://aithos.blendiv.com/hero-1.jpeg" alt="AI 生成的水彩猫咪画作" class="aspect-square rounded-lg object-cover" loading="lazy" />
-					<img src="https://aithos.blendiv.com/hero-2.jpeg" alt="AI 生成的水彩猫咪画作" class="aspect-square rounded-lg object-cover" loading="lazy" />
-					<img src="https://aithos.blendiv.com/hero-3.jpeg" alt="AI 生成的水彩猫咪画作" class="aspect-square rounded-lg object-cover" loading="lazy" />
+					<img src="https://gallery.bingwuai.com/hero-1.jpeg" alt="AI 生成的水彩猫咪画作" class="aspect-square rounded-lg object-cover" loading="lazy" />
+					<img src="https://gallery.bingwuai.com/hero-2.jpeg" alt="AI 生成的水彩猫咪画作" class="aspect-square rounded-lg object-cover" loading="lazy" />
+					<img src="https://gallery.bingwuai.com/hero-3.jpeg" alt="AI 生成的水彩猫咪画作" class="aspect-square rounded-lg object-cover" loading="lazy" />
 				</div>
 			</div>
 
