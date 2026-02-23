@@ -14,6 +14,8 @@
 		compressing: boolean;
 		originalSize: number;
 		compressedSize: number | null;
+		isPng: boolean;
+		toJpeg: boolean;
 	}
 
 	let items = $state<ImageItem[]>([]);
@@ -26,6 +28,7 @@
 	let hasFiles = $derived(items.length > 0);
 	let hasUncompressed = $derived(items.some((i) => !i.compressed && !i.compressing));
 	let hasCompressed = $derived(items.some((i) => i.compressed));
+	let hasPng = $derived(items.some((i) => i.isPng));
 	let totalOriginal = $derived(items.reduce((s, i) => s + i.originalSize, 0));
 	let totalCompressed = $derived(
 		items.reduce((s, i) => s + (i.compressedSize ?? i.originalSize), 0)
@@ -56,6 +59,7 @@
 				continue;
 			}
 			const previewUrl = URL.createObjectURL(file);
+			const isPng = file.type === 'image/png';
 			items = [
 				...items,
 				{
@@ -67,6 +71,8 @@
 					compressing: false,
 					originalSize: file.size,
 					compressedSize: null,
+					isPng,
+					toJpeg: false,
 				},
 			];
 		}
@@ -128,9 +134,9 @@
 					quality,
 					maxWidth: effectiveMaxW === Infinity ? undefined : effectiveMaxW,
 					maxHeight: effectiveMaxH === Infinity ? undefined : effectiveMaxH,
-					// Convert large PNGs to JPEG for meaningful compression
-					convertTypes: ['image/png'],
-					convertSize: 500_000,
+					mimeType: item.toJpeg ? 'image/jpeg' : 'auto',
+					convertTypes: item.toJpeg ? ['image/png'] : [],
+					convertSize: item.toJpeg ? 0 : Infinity,
 					success(result) {
 						const i = items.findIndex((x) => x.id === item.id);
 						if (i === -1) { resolve(); return; }
@@ -304,6 +310,20 @@
 							<option value={99999}>不限</option>
 						</select>
 					</label>
+					{#if hasPng}
+						<label class="flex cursor-pointer items-center gap-1.5">
+							<input
+								type="checkbox"
+								checked={items.filter((i) => i.isPng).every((i) => i.toJpeg)}
+								onchange={(e) => {
+									const checked = (e.target as HTMLInputElement).checked;
+									items = items.map((i) => i.isPng ? { ...i, toJpeg: checked } : i);
+								}}
+								class="h-3 w-3 accent-primary"
+							/>
+							<span class="text-xs text-muted-foreground">PNG 转 JPEG</span>
+						</label>
+					{/if}
 					<div class="ml-auto flex items-center gap-2">
 						<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => fileInputRef?.click()}>
 							<Upload class="mr-1 h-3 w-3" />
@@ -360,6 +380,16 @@
 										</span>
 									{/if}
 								</div>
+								{#if item.isPng}
+									<label class="mt-1 flex w-fit cursor-pointer items-center gap-1.5">
+										<input
+											type="checkbox"
+											bind:checked={item.toJpeg}
+											class="h-3 w-3 accent-primary"
+										/>
+										<span class="text-[11px] text-muted-foreground">转为 JPEG</span>
+									</label>
+								{/if}
 							</div>
 
 							<div class="flex shrink-0 items-center gap-1">
