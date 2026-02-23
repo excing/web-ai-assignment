@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Upload, Download, Trash2, Image as ImageIcon, Loader2 } from 'lucide-svelte';
+	import { Upload, Download, Trash2, Image as ImageIcon, Loader2, RefreshCw } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button';
 	import Compressor from 'compressorjs';
@@ -165,6 +165,29 @@
 		await Promise.all(uncompressed.map((i) => compressOne(i)));
 		isProcessingAll = false;
 		toast.success('全部压缩完成');
+	}
+
+	function resetItem(item: ImageItem) {
+		const i = items.findIndex((x) => x.id === item.id);
+		if (i === -1) return;
+		if (items[i].compressedUrl) URL.revokeObjectURL(items[i].compressedUrl!);
+		items[i].compressed = null;
+		items[i].compressedUrl = null;
+		items[i].compressedSize = null;
+	}
+
+	async function recompressOne(item: ImageItem) {
+		resetItem(item);
+		await compressOne(item);
+	}
+
+	async function recompressAll() {
+		isProcessingAll = true;
+		const compressed = items.filter((i) => i.compressed && !i.compressing);
+		for (const item of compressed) resetItem(item);
+		await Promise.all(compressed.map((i) => compressOne(i)));
+		isProcessingAll = false;
+		toast.success('全部重新压缩完成');
 	}
 
 	function downloadOne(item: ImageItem) {
@@ -342,6 +365,13 @@
 							<div class="flex shrink-0 items-center gap-1">
 								{#if item.compressed}
 									<button
+										onclick={() => recompressOne(item)}
+										class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+										title="重新压缩"
+									>
+										<RefreshCw class="h-3.5 w-3.5" />
+									</button>
+									<button
 										onclick={() => downloadOne(item)}
 										class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 										title="下载"
@@ -379,6 +409,17 @@
 							压缩中…
 						{:else}
 							全部压缩
+						{/if}
+					</Button>
+				{/if}
+				{#if hasCompressed && !hasUncompressed}
+					<Button variant="outline" size="sm" onclick={recompressAll} disabled={isProcessingAll}>
+						{#if isProcessingAll}
+							<Loader2 class="mr-1.5 h-3.5 w-3.5 animate-spin" />
+							压缩中…
+						{:else}
+							<RefreshCw class="mr-1.5 h-3.5 w-3.5" />
+							全部重新压缩
 						{/if}
 					</Button>
 				{/if}
