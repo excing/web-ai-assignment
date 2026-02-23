@@ -22,6 +22,7 @@ import {
 	deleteImageGenTasksByUser,
 	putBlob,
 	getBlob,
+	getBlobsByOwner,
 	deleteBlobsByOwner,
 	IDB_PREFIX,
 	type ImageGenTaskRecord,
@@ -343,12 +344,12 @@ function fileToDataUrl(file: File): Promise<string> {
 /**
  * 将 URL 序列化为 idb:// 引用。
  * 若 res 上已有 _idbRef（executeTask 预持久化），直接使用；
- * 否则将 blob:/data: URL 转换为 IndexedDB blob。
+ * 否则将 blob:/data:/http(s): URL 转换为 IndexedDB blob。
  */
 async function serializeUrl(url: string, ownerId: string, idbRef?: string, mimeType?: string, filename?: string): Promise<string> {
 	if (idbRef) return idbRef;
 	if (!url || url.startsWith(IDB_PREFIX)) return url;
-	if (url.startsWith('data:') || url.startsWith('blob:')) {
+	if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http://') || url.startsWith('https://')) {
 		const blob = await urlToBlob(url);
 		return saveBlobToIdb(blob, ownerId, mimeType || blob.type, filename);
 	}
@@ -414,19 +415,89 @@ async function recordToTask(record: ImageGenTaskRecord): Promise<GenerationTask>
 
 	// 恢复 mediaResources
 	const rawMedia: MediaResource[] = JSON.parse(record.mediaResources || '[]');
+
+	// 检查是否有远程 URL 残留（本地下载失败回退的 https:// 链接）
+	const hasRemoteUrls = rawMedia.some(
+		(r) => r.data?.startsWith('http://') || r.data?.startsWith('https://'),
+	);
+	// 预加载该 task 已有的全部 blob，用于匹配修复
+	let ownerBlobs: BlobRecord[] = [];
+	if (hasRemoteUrls) {
+		ownerBlobs = await getBlobsByOwner(record.id).catch(() => []);
+	}
+
+	let needsRepersist = false;
 	task.mediaResources = await Promise.all(
 		rawMedia.map(async (res) => {
-			if (!res.data?.startsWith(IDB_PREFIX)) return res;
-			const stored = await loadBlobFromIdb(res.data);
-			if (!stored) return res;
-			return {
-				...res,
-				data: createTrackedObjectUrl(stored.data, URL_SCOPE.IMAGE_GEN),
-				mimeType: stored.mediaType || res.mimeType,
-				filename: stored.filename || res.filename,
-			};
+			// 正常路径：已经是 idb:// 引用
+			if (res.data?.startsWith(IDB_PREFIX)) {
+				const stored = await loadBlobFromIdb(res.data);
+				if (!stored) return res;
+				return {
+					...res,
+					data: createTrackedObjectUrl(stored.data, URL_SCOPE.IMAGE_GEN),
+					mimeType: stored.mediaType || res.mimeType,
+					filename: stored.filename || res.filename,
+				};
+			}
+
+			// 修复路径：远程 URL 残留
+			if (res.data?.startsWith('http://') || res.data?.startsWith('https://')) {
+				// 1. 尝试从该 task 已有的 blob 中匹配
+				if (ownerBlobs.length > 0) {
+					const match = ownerBlobs.find((b) => {
+						if (res.mimeType && b.mediaType) return b.mediaType === res.mimeType;
+						return true;
+					});
+					if (match) {
+						ownerBlobs = ownerBlobs.filter((b) => b !== match);
+						needsRepersist = true;
+						return {
+							...res,
+							data: createTrackedObjectUrl(match.data, URL_SCOPE.IMAGE_GEN),
+							_idbRef: IDB_PREFIX + match.id,
+							mimeType: match.mediaType || res.mimeType,
+							filename: match.filename || res.filename,
+						} as PersistedMediaResource;
+					}
+				}
+				// 2. 无匹配 blob，尝试从远程重新下载并持久化
+				try {
+					const blob = await urlToBlob(res.data);
+					const mimeType = res.mimeType || blob.type;
+					const idbRef = await saveBlobToIdb(blob, record.id, mimeType, res.filename);
+					needsRepersist = true;
+					return {
+						...res,
+						data: createTrackedObjectUrl(blob, URL_SCOPE.IMAGE_GEN),
+						_idbRef: idbRef,
+						mimeType,
+					} as PersistedMediaResource;
+				} catch {
+					// 远程链接也已失效，保留原 URL
+					return res;
+				}
+			}
+
+			return res;
 		}),
 	);
+
+	// 回写修复后的记录，避免下次加载时重复修复
+	if (needsRepersist) {
+		const serializedMedia = task.mediaResources.map((res) => {
+			const idbRef = (res as PersistedMediaResource)._idbRef;
+			return {
+				type: res.type,
+				data: idbRef || res.data,
+				mimeType: res.mimeType,
+				filename: res.filename,
+			} as MediaResource;
+		});
+		updateImageGenTask(record.id, { mediaResources: JSON.stringify(serializedMedia) }).catch(
+			console.warn,
+		);
+	}
 
 	// 恢复 attachedFiles → File 对象（用于重试/克隆）
 	const fileRefs: string[] = JSON.parse(record.attachedFileRefs || '[]');

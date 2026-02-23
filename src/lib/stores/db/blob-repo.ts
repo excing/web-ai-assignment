@@ -23,6 +23,14 @@ export async function deleteBlob(id: string): Promise<void> {
 	await txDone(store.transaction);
 }
 
+/** 查询指定 owner 的所有 blob */
+export async function getBlobsByOwner(ownerId: string): Promise<BlobRecord[]> {
+	const store = await getStore(STORE.BLOBS);
+	const index = store.index('ownerId');
+	const result = await requestToPromise(index.getAll(ownerId));
+	return result ?? [];
+}
+
 /** 删除指定 owner 的所有 blob */
 export async function deleteBlobsByOwner(ownerId: string): Promise<void> {
 	const store = await getStore(STORE.BLOBS, 'readwrite');
