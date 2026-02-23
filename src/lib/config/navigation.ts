@@ -5,6 +5,7 @@ import {
 	Server,
 	ImageIcon,
 	LayoutTemplate,
+	Wrench,
 	type Icon,
 } from 'lucide-svelte';
 import type { ComponentType } from 'svelte';
@@ -28,7 +29,8 @@ export interface AdminNavItem extends NavItem {}
 
 export const navItems: NavItem[] = [
 	{ key: 'create', label: '图片生成', icon: ImageIcon, href: '/create' },
-	{ key: 'chat', label: 'Chat', icon: MessageCircle, href: '/chat' }
+	{ key: 'chat', label: 'Chat', icon: MessageCircle, href: '/chat' },
+	{ key: 'tools', label: '工具箱', icon: Wrench, href: '/tools' },
 ];
 
 // ─── 管理后台导航（仅 Admin 可见）────────────────────────
@@ -48,7 +50,7 @@ export const defaultRoute = '/create';
 // ─── 受保护路由前缀 ──────────────────────────────────────
 
 /** 需要认证的路由前缀列表 */
-export const protectedPrefixes = ['/chat', '/me', '/admin', '/create'];
+export const protectedPrefixes = ['/chat', '/me', '/admin', '/create', '/tools'];
 
 /** 认证相关页面（已登录用户会被重定向走） */
 export const authPages = ['/sign-in', '/sign-up'];
