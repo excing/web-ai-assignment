@@ -2,6 +2,7 @@
 	import { Upload, Download, Trash2, Image as ImageIcon, Loader2 } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button';
+	import Compressor from 'compressorjs';
 
 	// ── State ──
 	interface ImageItem {
@@ -89,12 +90,18 @@
 	}
 
 	// ── Compression ──
-	function loadImage(src: string): Promise<HTMLImageElement> {
+	function readImageSize(file: File): Promise<{ w: number; h: number }> {
 		return new Promise((resolve, reject) => {
 			const img = new Image();
-			img.onload = () => resolve(img);
-			img.onerror = () => reject(new Error('图片加载失败'));
-			img.src = src;
+			img.onload = () => {
+				resolve({ w: img.naturalWidth, h: img.naturalHeight });
+				URL.revokeObjectURL(img.src);
+			};
+			img.onerror = () => {
+				URL.revokeObjectURL(img.src);
+				reject(new Error('图片加载失败'));
+			};
+			img.src = URL.createObjectURL(file);
 		});
 	}
 
@@ -105,38 +112,47 @@
 		items[idx].compressing = true;
 
 		try {
-			const img = await loadImage(item.previewUrl);
-			const scalePct = scalePercent / 100;
-			const maxWidthScale = img.naturalWidth > maxWidth ? maxWidth / img.naturalWidth : 1;
-			const scale = Math.min(scalePct, maxWidthScale);
-			const w = Math.round(img.naturalWidth * scale);
-			const h = Math.round(img.naturalHeight * scale);
+			const { w: origW, h: origH } = await readImageSize(item.file);
 
-			const canvas = document.createElement('canvas');
-			canvas.width = w;
-			canvas.height = h;
-			const ctx = canvas.getContext('2d')!;
-			ctx.drawImage(img, 0, 0, w, h);
+			// Compute effective maxWidth: take the smaller of scalePercent-derived and maxWidth setting
+			const scaleW = scalePercent < 100 ? Math.round(origW * scalePercent / 100) : Infinity;
+			const limitW = maxWidth === 99999 ? Infinity : maxWidth;
+			const effectiveMaxW = Math.min(scaleW, limitW);
+			// Derive maxHeight proportionally so aspect ratio is preserved
+			const effectiveMaxH = effectiveMaxW === Infinity
+				? Infinity
+				: Math.round(origH * (effectiveMaxW / origW));
 
-			const outputType = item.file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-			const blob = await new Promise<Blob>((resolve, reject) => {
-				canvas.toBlob(
-					(b) => (b ? resolve(b) : reject(new Error('压缩失败'))),
-					outputType,
-					quality
-				);
+			await new Promise<void>((resolve) => {
+				new Compressor(item.file, {
+					quality,
+					maxWidth: effectiveMaxW === Infinity ? undefined : effectiveMaxW,
+					maxHeight: effectiveMaxH === Infinity ? undefined : effectiveMaxH,
+					// Convert large PNGs to JPEG for meaningful compression
+					convertTypes: ['image/png'],
+					convertSize: 500_000,
+					success(result) {
+						const i = items.findIndex((x) => x.id === item.id);
+						if (i === -1) { resolve(); return; }
+
+						if (items[i].compressedUrl) URL.revokeObjectURL(items[i].compressedUrl!);
+
+						const blob = result instanceof Blob ? result : new Blob([result]);
+						items[i].compressed = blob;
+						items[i].compressedUrl = URL.createObjectURL(blob);
+						items[i].compressedSize = blob.size;
+						items[i].compressing = false;
+						resolve();
+					},
+					error(err) {
+						const i = items.findIndex((x) => x.id === item.id);
+						if (i !== -1) items[i].compressing = false;
+						toast.error(`压缩失败: ${item.file.name}`);
+						resolve();
+					},
+				});
 			});
-
-			const i = items.findIndex((x) => x.id === item.id);
-			if (i === -1) return;
-
-			if (items[i].compressedUrl) URL.revokeObjectURL(items[i].compressedUrl!);
-
-			items[i].compressed = blob;
-			items[i].compressedUrl = URL.createObjectURL(blob);
-			items[i].compressedSize = blob.size;
-			items[i].compressing = false;
-		} catch (err) {
+		} catch {
 			const i = items.findIndex((x) => x.id === item.id);
 			if (i !== -1) items[i].compressing = false;
 			toast.error(`压缩失败: ${item.file.name}`);
@@ -152,10 +168,11 @@
 	}
 
 	function downloadOne(item: ImageItem) {
-		if (!item.compressedUrl) return;
+		if (!item.compressedUrl || !item.compressed) return;
 		const a = document.createElement('a');
 		a.href = item.compressedUrl;
-		const ext = item.file.type === 'image/png' ? 'png' : 'jpg';
+		const mimeType = item.compressed.type || item.file.type;
+		const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
 		const baseName = item.file.name.replace(/\.[^.]+$/, '');
 		a.download = `${baseName}_compressed.${ext}`;
 		document.body.appendChild(a);
