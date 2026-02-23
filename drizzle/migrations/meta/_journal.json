@@ -50,6 +50,13 @@
       "when": 1771662442829,
       "tag": "0006_left_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1771837085793,
+      "tag": "0007_rapid_kingpin",
+      "breakpoints": true
     }
   ]
 }

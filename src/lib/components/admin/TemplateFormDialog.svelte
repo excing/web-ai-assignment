@@ -23,6 +23,7 @@
         sortOrder: number;
         isPinned: boolean;
         isActive: boolean;
+        requiredLevel: number;
     }
 
     let {
@@ -56,6 +57,7 @@
     let formSortOrder = $state("0");
     let formIsPinned = $state(false);
     let formIsActive = $state(true);
+    let formRequiredLevel = $state("0");
 
     let generating = $state(false);
 
@@ -74,6 +76,7 @@
                 formSortOrder = String(initialData.sortOrder ?? 0);
                 formIsPinned = initialData.isPinned ?? false;
                 formIsActive = initialData.isActive ?? true;
+                formRequiredLevel = String(initialData.requiredLevel ?? 0);
             } else {
                 formName = "";
                 formCategory = "";
@@ -86,6 +89,7 @@
                 formSortOrder = "0";
                 formIsPinned = false;
                 formIsActive = true;
+                formRequiredLevel = "0";
             }
         }
     });
@@ -116,6 +120,7 @@
             sortOrder: parseInt(formSortOrder, 10) || 0,
             isPinned: formIsPinned,
             isActive: formIsActive,
+            requiredLevel: parseInt(formRequiredLevel, 10) || 0,
         });
     }
 
@@ -320,16 +325,29 @@
                 </Select.Root>
             </div>
 
-            <!-- 排序 -->
-            <div class="space-y-2">
-                <Label for="tpl-sort">排序（数值越大越靠前）</Label>
-                <Input
-                    id="tpl-sort"
-                    type="number"
-                    bind:value={formSortOrder}
-                    min="0"
-                    disabled={isBusy}
-                />
+            <!-- 排序 & 等级限制 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-2">
+                    <Label for="tpl-sort">排序（越大越靠前）</Label>
+                    <Input
+                        id="tpl-sort"
+                        type="number"
+                        bind:value={formSortOrder}
+                        min="0"
+                        disabled={isBusy}
+                    />
+                </div>
+                <div class="space-y-2">
+                    <Label for="tpl-level">所需等级</Label>
+                    <Input
+                        id="tpl-level"
+                        type="number"
+                        bind:value={formRequiredLevel}
+                        min="0"
+                        disabled={isBusy}
+                    />
+                    <p class="text-xs text-muted-foreground">0 = 不限，用户等级低于此值则不可见</p>
+                </div>
             </div>
 
             <!-- 复选框 -->

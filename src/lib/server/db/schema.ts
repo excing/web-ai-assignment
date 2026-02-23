@@ -17,6 +17,7 @@ export const user = pgTable('user', {
     emailVerified: boolean('emailVerified').notNull().default(false),
     image: text('image'),
     creditBalance: integer('credit_balance').notNull().default(0),
+    level: integer('level').notNull().default(0), // 用户等级（0 为默认）
     createdAt: timestamp('createdAt').notNull().defaultNow(),
     updatedAt: timestamp('updatedAt').notNull().defaultNow()
 });
@@ -184,6 +185,7 @@ export const imageGenTemplate = pgTable('image_gen_template', {
     sortOrder: integer('sort_order').notNull().default(0), // 排序（数值越大越靠前）
     isPinned: boolean('is_pinned').notNull().default(false), // 是否置顶
     isActive: boolean('is_active').notNull().default(true), // 是否启用
+    requiredLevel: integer('required_level').notNull().default(0), // 所需用户等级（0 = 不限）
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow()
 }, (table) => [

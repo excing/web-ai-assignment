@@ -60,6 +60,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
         if (body.sortOrder !== undefined) updates.sortOrder = Number(body.sortOrder);
         if (body.isPinned !== undefined) updates.isPinned = Boolean(body.isPinned);
         if (body.isActive !== undefined) updates.isActive = Boolean(body.isActive);
+        if (body.requiredLevel !== undefined) updates.requiredLevel = Number(body.requiredLevel);
 
         if (body.assignmentId !== undefined) {
             if (body.assignmentId) {

@@ -26,6 +26,7 @@ export const GET: RequestHandler = async ({ url }) => {
                 sortOrder: imageGenTemplate.sortOrder,
                 isPinned: imageGenTemplate.isPinned,
                 isActive: imageGenTemplate.isActive,
+                requiredLevel: imageGenTemplate.requiredLevel,
                 createdAt: imageGenTemplate.createdAt,
                 updatedAt: imageGenTemplate.updatedAt,
                 // 关联的 Assignment 信息
@@ -71,7 +72,7 @@ export const GET: RequestHandler = async ({ url }) => {
 export const POST: RequestHandler = async ({ request }) => {
     try {
         const body = await request.json();
-        const { name, category, prompt, previewImageUrl, description, imageCountMin, imageCountMax, assignmentId, sortOrder, isPinned, isActive } = body;
+        const { name, category, prompt, previewImageUrl, description, imageCountMin, imageCountMax, assignmentId, sortOrder, isPinned, isActive, requiredLevel } = body;
 
         if (!name || !category || !prompt) {
             return errorResponse(new ValidationError('请填写模板名称、分类和提示词'));
@@ -106,6 +107,7 @@ export const POST: RequestHandler = async ({ request }) => {
                 sortOrder: sortOrder != null ? Number(sortOrder) : 0,
                 isPinned: isPinned === true,
                 isActive: isActive !== false,
+                requiredLevel: requiredLevel != null ? Number(requiredLevel) : 0,
             })
             .returning();
 

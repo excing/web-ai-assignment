@@ -2,13 +2,24 @@ import { json } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { imageGenTemplate, aiProxyAssignment } from '$lib/server/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { imageGenTemplate, aiProxyAssignment, user } from '$lib/server/db/schema';
+import { eq, desc, and, lte } from 'drizzle-orm';
 import { errorResponse } from '$lib/server/errors';
 
-// 获取所有启用的模板（按分类分组）
-export const GET: RequestHandler = async () => {
+// 获取所有启用的模板（按分类分组，根据用户等级过滤）
+export const GET: RequestHandler = async ({ locals }) => {
     try {
+        // 获取当前用户等级
+        let userLevel = 0;
+        const userId = locals.session?.user?.id;
+        if (userId) {
+            const [u] = await db
+                .select({ level: user.level })
+                .from(user)
+                .where(eq(user.id, userId));
+            if (u) userLevel = u.level;
+        }
+
         const templates = await db
             .select({
                 id: imageGenTemplate.id,
@@ -27,7 +38,10 @@ export const GET: RequestHandler = async () => {
             })
             .from(imageGenTemplate)
             .leftJoin(aiProxyAssignment, eq(imageGenTemplate.assignmentId, aiProxyAssignment.id))
-            .where(eq(imageGenTemplate.isActive, true))
+            .where(and(
+                eq(imageGenTemplate.isActive, true),
+                lte(imageGenTemplate.requiredLevel, userLevel)
+            ))
             .orderBy(
                 desc(imageGenTemplate.isPinned),
                 desc(imageGenTemplate.sortOrder),

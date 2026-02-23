@@ -309,8 +309,9 @@
                             <Table.Head>分类</Table.Head>
                             <Table.Head class="hidden lg:table-cell">提示词</Table.Head>
                             <Table.Head>图片数</Table.Head>
-                            <Table.Head class="hidden md:table-cell">Assignment</Table.Head>
+                            <Table.Head>Assignment</Table.Head>
                             <Table.Head>排序</Table.Head>
+                            <Table.Head>等级</Table.Head>
                             <Table.Head>状态</Table.Head>
                             <Table.Head class="text-right">操作</Table.Head>
                         </Table.Row>
@@ -354,7 +355,7 @@
                                 <Table.Cell>
                                     <span class="text-xs">{formatImageCount(tpl.imageCountMin, tpl.imageCountMax)}</span>
                                 </Table.Cell>
-                                <Table.Cell class="hidden md:table-cell">
+                                <Table.Cell>
                                     {#if tpl.assignmentName}
                                         <span class="text-xs">{tpl.assignmentName}</span>
                                     {:else}
@@ -362,6 +363,13 @@
                                     {/if}
                                 </Table.Cell>
                                 <Table.Cell>{tpl.sortOrder}</Table.Cell>
+                                <Table.Cell>
+                                    {#if tpl.requiredLevel > 0}
+                                        <Badge variant="outline">Lv.{tpl.requiredLevel}</Badge>
+                                    {:else}
+                                        <span class="text-xs text-muted-foreground">不限</span>
+                                    {/if}
+                                </Table.Cell>
                                 <Table.Cell>
                                     <div class="flex items-center gap-1">
                                         <Badge variant={tpl.isActive ? "default" : "secondary"}>

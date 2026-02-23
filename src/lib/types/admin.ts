@@ -86,6 +86,7 @@ export interface ImageGenTemplate {
 	sortOrder: number;
 	isPinned: boolean;
 	isActive: boolean;
+	requiredLevel: number;
 	createdAt: string;
 	updatedAt: string;
 	// 关联信息（JOIN 查询时填充）
@@ -106,4 +107,5 @@ export interface TemplateFormData {
 	sortOrder: string;
 	isPinned: boolean;
 	isActive: boolean;
+	requiredLevel: string;
 }

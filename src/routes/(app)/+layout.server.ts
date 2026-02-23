@@ -1,11 +1,23 @@
 import type { LayoutServerLoad } from './$types';
 import { isAdmin } from '$lib/server/credits/admin';
-import { getBalance } from '$lib/server/credits/credit-service';
+import { db } from '$lib/server/db';
+import { user as userTable } from '$lib/server/db/schema';
+import { eq } from 'drizzle-orm';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
-    const user = locals.session?.user;
+    const sessionUser = locals.session?.user;
+    if (!sessionUser) {
+        return { isAdmin: false, creditBalance: 0, userLevel: 0 };
+    }
+
+    const [row] = await db
+        .select({ creditBalance: userTable.creditBalance, level: userTable.level })
+        .from(userTable)
+        .where(eq(userTable.id, sessionUser.id));
+
     return {
-        isAdmin: user ? isAdmin(user.email) : false,
-        creditBalance: user ? await getBalance(user.id) : 0,
+        isAdmin: isAdmin(sessionUser.email),
+        creditBalance: row?.creditBalance ?? 0,
+        userLevel: row?.level ?? 0,
     };
 };
