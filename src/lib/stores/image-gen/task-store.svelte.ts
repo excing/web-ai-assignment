@@ -220,14 +220,24 @@ class TaskManager {
 
 		try {
 			const rawMedia = await callImageGenApi(task.prompt, task.attachedFiles, task.aspectRatio, task.featureKey);
-			const mediaResources = await downloadAndPersistMedia(id, rawMedia);
 
-			this.updateTask(id, { status: 'success', mediaResources, completedAt: Date.now() });
-			this.persistTask(id);
-			this.showCompletionToast(task, mediaResources);
+			// 立即用远程 URL 显示图片，减少用户等待时间
+			this.updateTask(id, { status: 'success', mediaResources: rawMedia, completedAt: Date.now() });
+			this.showCompletionToast(task, rawMedia);
 
 			refreshCurrentUser().catch(console.warn);
 			fetchCreditBalance().catch(console.warn);
+
+			// 后台下载并持久化到 IndexedDB，完成后替换为本地 blob URL
+			// 注意：必须在持久化完成后才写入 DB，确保存储的是 idb:// 引用而非远程 URL
+			downloadAndPersistMedia(id, rawMedia).then((persisted) => {
+				this.updateTask(id, { mediaResources: persisted });
+				this.persistTask(id);
+			}).catch((err) => {
+				console.warn('Background media persist failed, saving with remote URLs:', err);
+				// 持久化失败时仍尝试保存记录（serializeUrl 会兜底处理远程 URL）
+				this.persistTask(id);
+			});
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : '生成失败';
 			this.updateTask(id, { status: 'error', error: errorMsg, completedAt: Date.now() });
