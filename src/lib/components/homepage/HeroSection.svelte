@@ -55,7 +55,7 @@
 
 			<!-- Subheadline -->
 			<p class="mx-auto mt-6 max-w-2xl text-balance text-lg text-muted-foreground sm:text-xl">
-				丙午马年，灵感如火、一日千里。文字生图、智能对话，一站式 AI 创作平台。
+				丙午以马，灵感如火、一日千里。文字生图、智能对话，一站式 AI 创作平台。
 			</p>
 
 			<!-- CTA Buttons -->
