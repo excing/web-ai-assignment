@@ -17,7 +17,10 @@
 		<div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
 			<!-- Brand -->
 			<div class="sm:col-span-2 lg:col-span-1">
-				<span class="text-lg font-bold">BingWu AI</span>
+				<div class="flex items-center gap-2.5">
+					<img src="/favicon.svg" alt="BingWu AI" class="h-8 w-8" />
+					<span class="text-lg font-bold">BingWu AI</span>
+				</div>
 				<p class="mt-2 text-sm text-muted-foreground">
 					AI 智能创作平台，让创造更简单。
 				</p>

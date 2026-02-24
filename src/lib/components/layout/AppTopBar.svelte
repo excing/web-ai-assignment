@@ -16,7 +16,8 @@
         {#if leftSlot}
             {@render leftSlot()}
         {:else}
-            <a href="/" class="flex items-center font-semibold min-[1024px]:hidden">
+            <a href="/" class="flex items-center gap-2 font-semibold min-[1024px]:hidden">
+                <img src="/favicon.svg" alt="BingWu AI" class="h-7 w-7" />
                 <span>BingWu AI</span>
             </a>
             <div class="hidden min-[1024px]:block"></div>
