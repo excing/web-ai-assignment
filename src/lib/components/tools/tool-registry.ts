@@ -7,6 +7,7 @@
 import {
 	Minimize2,
 	Columns2,
+	FileCode2,
 	type Icon,
 } from 'lucide-svelte';
 import type { ComponentType } from 'svelte';
@@ -42,5 +43,13 @@ export const tools: ToolDefinition[] = [
 		icon: Columns2,
 		iconBg: 'bg-emerald-500/10',
 		iconColor: 'text-emerald-500',
+	},
+	{
+		key: 'svg',
+		label: '图片转 SVG',
+		description: '将位图转换为矢量 SVG 图形',
+		icon: FileCode2,
+		iconBg: 'bg-violet-500/10',
+		iconColor: 'text-violet-500',
 	},
 ];
