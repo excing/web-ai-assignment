@@ -429,16 +429,33 @@
 			return;
 		}
 
-		shapeObj.selectable = activeTool === 'select';
-		shapeObj.evented = activeTool === 'select';
-		shapeObj.setCoords();
+		// 检查形状是否太小（可能是无意点击产生的点）
+		const isTooSmall =
+			shapeKind === 'line'
+				? Math.hypot(
+						(shapeObj as FabricLine).x2 - (shapeObj as FabricLine).x1,
+						(shapeObj as FabricLine).y2 - (shapeObj as FabricLine).y1
+					) < 4
+				: (shapeObj.width || 0) * (shapeObj.scaleX || 1) < 4 &&
+					(shapeObj.height || 0) * (shapeObj.scaleY || 1) < 4;
+
+		if (isTooSmall) {
+			fabricCanvas.remove(shapeObj);
+		} else {
+			shapeObj.selectable = activeTool === 'select';
+			shapeObj.evented = activeTool === 'select';
+			shapeObj.setCoords();
+		}
+
 		fabricCanvas.requestRenderAll();
 
 		shapeObj = null;
 		shapeStart = null;
 		shapeKind = null;
 		isDrawingShape = false;
-		captureHistory();
+		if (!isTooSmall) {
+			captureHistory();
+		}
 	}
 
 	function pickColor(evt: unknown) {
@@ -831,6 +848,13 @@
 
 			canvas.on('path:created', (evt) => {
 				if (!evt.path) return;
+
+				// 过滤掉点击产生的极小路径（点）
+				const pathObj = evt.path;
+				if (pathObj.width < 1.5 && pathObj.height < 1.5) {
+					canvas.remove(pathObj);
+					return;
+				}
 				
 				const isEraser = activeTool === 'eraser';
 				evt.path.set({
@@ -847,7 +871,8 @@
 			const historyEvents = ['object:added', 'object:modified', 'object:removed'];
 			for (const eventName of historyEvents) {
 				canvas.on(eventName as 'object:added', () => {
-					if (!isRestoringHistory) captureHistory();
+					// 正在绘制形状或处于自由绘画模式时不自动捕捉历史，由对应结束事件统一捕捉
+					if (!isRestoringHistory && !isDrawingShape && !canvas.isDrawingMode) captureHistory();
 				});
 			}
 
