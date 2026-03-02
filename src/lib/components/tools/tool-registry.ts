@@ -8,6 +8,7 @@ import {
 	Minimize2,
 	Columns2,
 	FileCode2,
+	PenTool,
 	type Icon,
 } from 'lucide-svelte';
 import type { ComponentType } from 'svelte';
@@ -51,5 +52,13 @@ export const tools: ToolDefinition[] = [
 		icon: FileCode2,
 		iconBg: 'bg-violet-500/10',
 		iconColor: 'text-violet-500',
+	},
+	{
+		key: 'canvas',
+		label: '画板',
+		description: '自由绘制、形状文字、取色与填充的一体化画板',
+		icon: PenTool,
+		iconBg: 'bg-orange-500/10',
+		iconColor: 'text-orange-500',
 	},
 ];
