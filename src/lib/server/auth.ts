@@ -39,6 +39,7 @@ const resend = new Resend(RESEND_API_KEY);
 export const auth = betterAuth({
 	    trustedOrigins: [APP_URL],
 	    allowedDevOrigins: [APP_URL],
+        baseURL: APP_URL,
     cookieCache: {
         enabled: true,
         maxAge: 5 * 60 // Cache duration in seconds
