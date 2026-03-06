@@ -3,6 +3,8 @@ import type { UIMessage } from 'ai';
 import { BaseAIService } from './base-ai-service';
 import { extractMediaResources, type MediaResource } from './media-extractor';
 import { createLogger } from '$lib/server/logger';
+import { PollinationsImageService } from './pollinations-image-service';
+import { AI_PROVIDER } from '$lib/config/constants';
 
 export type { MediaResource } from './media-extractor';
 
@@ -138,6 +140,20 @@ export class ImageGenerationService {
 		request: ImageGenerationRequest
 	): Promise<ImageGenerationResponse> {
 		await this.base.initialize();
+		const config = this.base.getProxyConfig();
+
+		// 检测 provider 类型
+		if (config.provider === AI_PROVIDER.POLLINATIONS_IMAGE) {
+			// 委托给 PollinationsImageService 处理
+			const pollinationsService = new PollinationsImageService({
+				feature: (this.base as any)['options'].feature,
+				userId: (this.base as any)['options'].userId,
+				defaultModel: config.model,
+			});
+			return await pollinationsService.handleImageGenerationRequest(request);
+		}
+
+		// 默认的 LLM 图像生成流程
 		const modelMessages = await this.convertMessages(request.messages);
 		return await this.generateImage(modelMessages);
 	}

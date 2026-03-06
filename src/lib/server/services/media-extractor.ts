@@ -55,7 +55,7 @@ export function getMediaType(mimeType?: string): MediaResource['type'] {
 async function downloadAndUploadToR2(
 	url: string,
 	timeout = 10000,
-): Promise<{ data: string; mimeType: string } | null> {
+): Promise<{ data: string; mimeType: string }> {
 	try {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -71,7 +71,7 @@ async function downloadAndUploadToR2(
 
 		if (!response.ok) {
 			log.error(`下载资源失败: ${url}`, undefined, { status: response.status });
-			return null;
+			return { data: url, mimeType: 'application/octet-stream' };
 		}
 
 		const mimeType = response.headers.get('content-type') || 'application/octet-stream';
@@ -79,7 +79,7 @@ async function downloadAndUploadToR2(
 		const contentLength = response.headers.get('content-length');
 		if (contentLength && parseInt(contentLength) > 20 * 1024 * 1024) {
 			log.error(`资源过大: ${url}`, undefined, { size: contentLength });
-			return null;
+			return { data: url, mimeType: 'application/octet-stream' };
 		}
 
 		const arrayBuffer = await response.arrayBuffer();
@@ -92,7 +92,7 @@ async function downloadAndUploadToR2(
 		} else {
 			log.error(`下载资源异常: ${url}`, error instanceof Error ? error : undefined);
 		}
-		return null;
+		return { data: url, mimeType: 'application/octet-stream' };
 	}
 }
 
@@ -185,14 +185,12 @@ export async function extractMediaResources(
 				}
 			} else if (imageUrl.startsWith('http')) {
 				const result = await downloadAndUploadToR2(imageUrl);
-				if (result) {
-					resources.push({
-						type: getMediaType(result.mimeType),
-						data: result.data,
-						mimeType: result.mimeType,
-						filename: 'generated-image',
-					});
-				}
+				resources.push({
+					type: getMediaType(result.mimeType),
+					data: result.data,
+					mimeType: result.mimeType,
+					filename: 'generated-image',
+				});
 			}
 		}
 	} catch {
@@ -266,21 +264,18 @@ export async function extractMediaResources(
 
 		const downloadResults = await Promise.all(
 			[...urlMap.entries()].map(async ([url, filename]) => {
-				const result = await downloadAndUploadToR2(url);
-				if (result) {
-					urlReplacements.set(url, result.data);
-					return {
-						type: getMediaType(result.mimeType),
-						data: result.data,
-						mimeType: result.mimeType,
-						filename,
-					} as MediaResource;
-				}
-				return null;
+				const result = await downloadAndUploadToR2(url, 60*1000);
+				urlReplacements.set(url, result.data);
+				return {
+					type: getMediaType(result.mimeType),
+					data: result.data,
+					mimeType: result.mimeType,
+					filename,
+				} as MediaResource;
 			}),
 		);
 
-		resources.push(...downloadResults.filter((r): r is MediaResource => r !== null));
+		resources.push(...downloadResults);
 	}
 
 	// 替换文本中的原始引用为 R2 URL

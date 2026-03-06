@@ -34,6 +34,8 @@ export const AI_PROVIDER = {
 	ANTHROPIC: 'anthropic',
 	/** Google */
 	GOOGLE: 'google',
+	/** Pollinations Image */
+	POLLINATIONS_IMAGE: 'pollinations_image',
 } as const;
 
 export const HEALTH_STATUS = {

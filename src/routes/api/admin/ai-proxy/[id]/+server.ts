@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { encrypt } from '$lib/server/crypto';
 import { invalidateProxyCache } from '$lib/server/ai-proxy';
 import { errorResponse, ValidationError, NotFoundError } from '$lib/server/errors';
+import { AI_PROVIDER } from '$lib/config/constants';
 
 // 更新 Proxy
 export const PUT: RequestHandler = async ({ params, request }) => {
@@ -22,7 +23,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
             return errorResponse(new ValidationError('请填写所有必填字段（名称、Provider、Base URL）'));
         }
 
-        const validProviders = ['openai', 'anthropic', 'google'];
+        const validProviders = [AI_PROVIDER.OPENAI, AI_PROVIDER.ANTHROPIC, AI_PROVIDER.GOOGLE, AI_PROVIDER.POLLINATIONS_IMAGE];
         if (!validProviders.includes(provider)) {
             return errorResponse(new ValidationError(`Provider 必须是 ${validProviders.join(', ')} 之一`));
         }

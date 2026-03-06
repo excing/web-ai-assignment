@@ -7,6 +7,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Loader2, RefreshCw, Zap, Check, X } from '@lucide/svelte';
 	import { aiProxyProxiesStore } from '$lib/stores/ai-proxy';
+    import { AI_PROVIDER } from '$lib/config/constants';
 
 	let { mode, open = $bindable() }: { mode: 'create' | 'edit'; open: boolean } = $props();
 
@@ -66,20 +67,23 @@
 				<Label>Provider *</Label>
 				<Select.Root type="single" bind:value={aiProxyProxiesStore.proxyForm.provider}>
 					<Select.Trigger class="w-full">
-						{#if aiProxyProxiesStore.proxyForm.provider === 'openai'}
+						{#if aiProxyProxiesStore.proxyForm.provider === AI_PROVIDER.OPENAI}
 							OpenAI
-						{:else if aiProxyProxiesStore.proxyForm.provider === 'anthropic'}
+						{:else if aiProxyProxiesStore.proxyForm.provider === AI_PROVIDER.ANTHROPIC}
 							Anthropic
-						{:else if aiProxyProxiesStore.proxyForm.provider === 'google'}
+						{:else if aiProxyProxiesStore.proxyForm.provider === AI_PROVIDER.GOOGLE}
 							Google
+						{:else if aiProxyProxiesStore.proxyForm.provider === AI_PROVIDER.POLLINATIONS_IMAGE}
+							Pollinations Image
 						{:else}
 							请选择 Provider
 						{/if}
 					</Select.Trigger>
 					<Select.Content>
-						<Select.Item value="openai" label="OpenAI" />
-						<Select.Item value="anthropic" label="Anthropic" />
-						<Select.Item value="google" label="Google" />
+						<Select.Item value={AI_PROVIDER.OPENAI} label="OpenAI" />
+						<Select.Item value={AI_PROVIDER.ANTHROPIC} label="Anthropic" />
+						<Select.Item value={AI_PROVIDER.GOOGLE} label="Google" />
+						<Select.Item value={AI_PROVIDER.POLLINATIONS_IMAGE} label="Pollinations Image" />
 					</Select.Content>
 				</Select.Root>
 			</div>
