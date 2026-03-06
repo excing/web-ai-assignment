@@ -298,7 +298,7 @@
 								</Table.Header>
 								<Table.Body>
 									{#each aiProxyAssignmentsStore.assignments.items as assignment (assignment.id)}
-										{@const operating = aiProxyProxiesStore.isOperating(assignment.id)}
+										{@const operating = aiProxyAssignmentsStore.isOperating(assignment.id)}
 										<Table.Row class={operating ? 'opacity-50' : ''}>
 											<Table.Cell>
 												<div class="text-sm">

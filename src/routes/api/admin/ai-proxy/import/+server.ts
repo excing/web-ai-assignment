@@ -5,10 +5,21 @@ import { aiProxy } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { encrypt } from '$lib/server/crypto';
 import { errorResponse, ValidationError } from '$lib/server/errors';
+import { AI_PROVIDER } from '$lib/config/constants';
 
-const VALID_PROVIDERS = ['openai', 'anthropic', 'google'];
+const VALID_PROVIDERS = Object.values(AI_PROVIDER);
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+function isValidHttpUrl(value: unknown): boolean {
+    if (typeof value !== 'string') return false;
+    try {
+        const u = new URL(value);
+        return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+export const POST: RequestHandler = async ({ request }) => {
     try {
         const body = await request.json();
         const { version, proxies } = body;
@@ -25,22 +36,44 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         let skipped = 0;
 
         for (const p of proxies) {
-            if (!p.name || !p.provider || !p.baseUrl || !p.apiKey) {
+            // 基础字段校验
+            if (!p.name || typeof p.name !== 'string' ||
+                !p.provider || !p.baseUrl || !p.apiKey ||
+                typeof p.apiKey !== 'string') {
                 skipped++;
                 continue;
             }
 
+            // Provider 白名单（与常量保持同步）
             if (!VALID_PROVIDERS.includes(p.provider)) {
                 skipped++;
                 continue;
             }
 
+            // baseUrl 必须是合法的 http/https URL（防止 SSRF）
+            if (!isValidHttpUrl(p.baseUrl)) {
+                skipped++;
+                continue;
+            }
+
+            // models 必须是字符串数组
+            const models: string[] = Array.isArray(p.models)
+                ? p.models.filter((m: unknown) => typeof m === 'string' && m.trim().length > 0)
+                : [];
+
+            // priority 限制在安全整数范围内
+            const rawPriority = Number(p.priority);
+            const priority = Number.isFinite(rawPriority)
+                ? Math.max(-9999, Math.min(9999, Math.trunc(rawPriority)))
+                : 0;
+
+            // 名称去重
             if (existingNames.has(p.name)) {
                 skipped++;
                 continue;
             }
 
-            const proxyId = `proxy-${Date.now()}-${imported}`;
+            const proxyId = crypto.randomUUID();
             const encryptedApiKey = encrypt(p.apiKey);
 
             await db.insert(aiProxy).values({
@@ -49,8 +82,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 provider: p.provider,
                 baseUrl: p.baseUrl,
                 apiKey: encryptedApiKey,
-                models: Array.isArray(p.models) ? p.models : [],
-                priority: p.priority !== undefined ? Number(p.priority) : 0,
+                models,
+                priority,
                 isActive: p.isActive !== undefined ? Boolean(p.isActive) : true,
             });
 

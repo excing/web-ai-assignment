@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { aiProxyAssignment, aiProxy } from '$lib/server/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, count } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { invalidateProxyCache } from '$lib/server/ai-proxy';
 import { parsePagination } from '$lib/config/constants';
@@ -56,11 +56,13 @@ export const GET: RequestHandler = async ({ url }) => {
             .limit(limit)
             .offset(offset);
 
-        // 总数查询
-        const allRows = await db
-            .select({ id: aiProxyAssignment.id })
+        // 总数查询（与主查询使用相同的 WHERE 条件）
+        const countQuery = db
+            .select({ total: count() })
             .from(aiProxyAssignment);
-        const total = allRows.length;
+        const [{ total }] = featureKey
+            ? await countQuery.where(eq(aiProxyAssignment.featureKey, featureKey))
+            : await countQuery;
 
         return json({ assignments, total, limit, offset });
     } catch (error) {
@@ -99,7 +101,7 @@ export const POST: RequestHandler = async ({ request }) => {
             }
         }
 
-        const assignmentId = `asgn-${Date.now()}`;
+        const assignmentId = crypto.randomUUID();
 
         const [newAssignment] = await db
             .insert(aiProxyAssignment)

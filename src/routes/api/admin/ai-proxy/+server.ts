@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { aiProxy } from '$lib/server/db/schema';
 import { encrypt } from '$lib/server/crypto';
-import { desc } from 'drizzle-orm';
+import { count, desc } from 'drizzle-orm';
 import { AI_PROVIDER, parsePagination } from '$lib/config/constants';
 import { errorResponse, ValidationError } from '$lib/server/errors';
 
@@ -31,11 +31,10 @@ export const GET: RequestHandler = async ({ url }) => {
             .limit(limit)
             .offset(offset);
 
-        // 总数查询
-        const allRows = await db
-            .select({ id: aiProxy.id })
+        // 总数查询（单次聚合，无需全表 SELECT）
+        const [{ total }] = await db
+            .select({ total: count() })
             .from(aiProxy);
-        const total = allRows.length;
 
         return json({ proxies, total, limit, offset });
     } catch (error) {
@@ -58,7 +57,7 @@ export const POST: RequestHandler = async ({ request }) => {
             return errorResponse(new ValidationError(`Provider 必须是 ${validProviders.join(', ')} 之一`));
         }
 
-        const proxyId = `proxy-${Date.now()}`;
+        const proxyId = crypto.randomUUID();
         const encryptedApiKey = encrypt(apiKey);
 
         const [newProxy] = await db

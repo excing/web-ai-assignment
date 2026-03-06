@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { createChatService } from '$lib/server/services/chat-service';
+import { convertToModelMessages } from 'ai';
+import { BaseAIService } from '$lib/server/services/base-ai-service';
 import { parseRequestBody, validateChatMessages } from '$lib/server/services/validation';
 import { InsufficientBalanceError } from '$lib/server/credits/billing-service';
 
@@ -18,19 +19,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: messagesResult.error }, { status: 400 });
 	}
 
-	// 3. 创建聊天服务并处理请求
-	const chatService = createChatService({
+	// 3. 初始化 AI 服务
+	const service = new BaseAIService({
 		feature: 'chat',
-		maxOutputTokens: 4096,
+		userId: locals.session?.user?.id,
 		reasoningTagName: 'think',
-		userId: locals.session?.user?.id
 	});
 
 	try {
-		const result = await chatService.handleChatRequest({
-			messages: messagesResult.data!
+		await service.initialize();
+		const modelMessages = await convertToModelMessages(messagesResult.data!);
+		const result = await service.executeStreaming({
+			messages: modelMessages,
+			maxOutputTokens: 4096,
+			billingDescription: 'AI 对话',
 		});
-
 		return result.toUIMessageStreamResponse();
 	} catch (error) {
 		if (error instanceof InsufficientBalanceError) {

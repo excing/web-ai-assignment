@@ -167,6 +167,7 @@ async function getCachedOrFetch(featureKey: string): Promise<CacheEntry | null> 
             and(
                 eq(aiProxyAssignment.featureKey, featureKey),
                 eq(aiProxyAssignment.isActive, true),
+                eq(aiProxy.isActive, true),
             )
         )
         .orderBy(desc(aiProxy.priority))
@@ -343,7 +344,7 @@ export async function reportAssignmentSuccess(assignmentId: string, isBackup: bo
                     )
                 );
         } else {
-            // 默认渠道成功：完全重置健康状态
+            // 默认渠道成功：仅在不健康时才重置（避免对健康渠道的无效写入）
             await db
                 .update(aiProxyAssignment)
                 .set({
@@ -353,7 +354,12 @@ export async function reportAssignmentSuccess(assignmentId: string, isBackup: bo
                     lastErrorAt: null,
                     updatedAt: new Date()
                 })
-                .where(eq(aiProxyAssignment.id, assignmentId));
+                .where(
+                    and(
+                        eq(aiProxyAssignment.id, assignmentId),
+                        sql`${aiProxyAssignment.unhealthyCount} > 0`
+                    )
+                );
         }
 
         invalidateProxyCache();
@@ -396,11 +402,11 @@ export async function reportAssignmentFailure(assignmentId: string, errorMessage
 
         const { unhealthyCount, backupProxyId } = updated;
 
-        // 检查是否需要触发应急
+        // 检查是否需要触发应急（仅在首次到达阈值时触发，避免重复告警）
         const hasBackup = !!backupProxyId;
         const shouldEmergency =
-            (!hasBackup && unhealthyCount >= FAILOVER.PRIMARY_THRESHOLD) ||
-            (hasBackup && unhealthyCount >= FAILOVER.EMERGENCY_THRESHOLD);
+            (!hasBackup && unhealthyCount === FAILOVER.PRIMARY_THRESHOLD) ||
+            (hasBackup && unhealthyCount === FAILOVER.EMERGENCY_THRESHOLD);
 
         if (shouldEmergency) {
             log.error('触发应急流程', {

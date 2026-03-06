@@ -73,6 +73,14 @@ export class BaseAIService {
 		}
 	}
 
+	get feature(): string {
+		return this.options.feature;
+	}
+
+	get userId(): string | undefined {
+		return this.options.userId;
+	}
+
 	/** 获取已初始化的 ProxyConfig（初始化后可用） */
 	getProxyConfig(): ProxyConfig {
 		if (!this.proxyConfig) {

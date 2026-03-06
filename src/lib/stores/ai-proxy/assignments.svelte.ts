@@ -4,13 +4,15 @@
 
 import { toast } from 'svelte-sonner';
 import { PaginatedState } from '../pagination.svelte';
-import { aiProxyProxiesStore } from './proxies.svelte';
 import type { AiProxyAssignment, AssignmentFormData } from '$lib/types/admin';
 import { HEALTH_STATUS } from '$lib/config/constants';
 
 class AiProxyAssignmentsStore {
 	// Assignment 分页状态
 	assignments = new PaginatedState<AiProxyAssignment>();
+
+	// 操作状态（独立管理，不依赖 proxy store）
+	operatingItems = $state<Set<string>>(new Set());
 
 	// 对话框状态
 	createAssignmentDialogOpen = $state(false);
@@ -33,6 +35,22 @@ class AiProxyAssignmentsStore {
 		minimum: ''
 	});
 	savingAssignment = $state(false);
+
+	// ============ 操作状态管理 ============
+
+	isOperating(id: string): boolean {
+		return this.operatingItems.has(id);
+	}
+
+	startOperation(id: string) {
+		this.operatingItems = new Set([...this.operatingItems, id]);
+	}
+
+	endOperation(id: string) {
+		const newSet = new Set(this.operatingItems);
+		newSet.delete(id);
+		this.operatingItems = newSet;
+	}
 
 	// ============ 辅助方法 ============
 
@@ -171,35 +189,10 @@ class AiProxyAssignmentsStore {
 			});
 
 			if (res.ok) {
-				const data = await res.json();
-				const updated = data.assignment;
-				const proxy = aiProxyProxiesStore.proxies.items.find((p) => p.id === updated.proxyId);
-				const backupProxy = updated.backupProxyId
-					? aiProxyProxiesStore.proxies.items.find((p) => p.id === updated.backupProxyId)
-					: null;
-				this.patchAssignmentItem(this.assignmentForm.id, {
-					name: updated.name,
-					description: updated.description,
-					featureKey: updated.featureKey,
-					proxyId: updated.proxyId,
-					defaultModel: updated.defaultModel,
-					isActive: updated.isActive,
-					backupProxyId: updated.backupProxyId,
-					backupModel: updated.backupModel,
-					billingMode: updated.billingMode,
-					inputPer1k: updated.inputPer1k,
-					outputPer1k: updated.outputPer1k,
-					minimum: updated.minimum,
-					updatedAt: updated.updatedAt,
-					...(proxy ? {
-						proxyName: proxy.name,
-						proxyProvider: proxy.provider,
-					} : {}),
-					backupProxyName: backupProxy?.name ?? null,
-				});
 				toast.success('绑定更新成功');
 				this.editAssignmentDialogOpen = false;
 				this.resetAssignmentForm();
+				await this.silentReloadAssignments();
 				return true;
 			} else {
 				const data = await res.json();
@@ -220,16 +213,17 @@ class AiProxyAssignmentsStore {
 			return false;
 		}
 
-		aiProxyProxiesStore.startOperation(assignmentId);
+		this.startOperation(assignmentId);
 
-		const index = this.assignments.items.findIndex((a) => a.id === assignmentId);
-		if (index === -1) {
-			aiProxyProxiesStore.endOperation(assignmentId);
+		const snapshot = this.assignments.items;
+		const snapshotTotal = this.assignments.total;
+
+		if (!snapshot.find((a) => a.id === assignmentId)) {
+			this.endOperation(assignmentId);
 			return false;
 		}
 
-		const deletedItem = this.assignments.items[index];
-		this.assignments.items = this.assignments.items.filter((a) => a.id !== assignmentId);
+		this.assignments.items = snapshot.filter((a) => a.id !== assignmentId);
 		this.assignments.total--;
 
 		try {
@@ -241,35 +235,27 @@ class AiProxyAssignmentsStore {
 				toast.success('绑定删除成功');
 				return true;
 			} else {
-				this.assignments.items = [
-					...this.assignments.items.slice(0, index),
-					deletedItem,
-					...this.assignments.items.slice(index)
-				];
-				this.assignments.total++;
+				this.assignments.items = snapshot;
+				this.assignments.total = snapshotTotal;
 				const data = await res.json();
 				toast.error(data.error || '删除失败');
 				return false;
 			}
 		} catch (error) {
-			this.assignments.items = [
-				...this.assignments.items.slice(0, index),
-				deletedItem,
-				...this.assignments.items.slice(index)
-			];
-			this.assignments.total++;
+			this.assignments.items = snapshot;
+			this.assignments.total = snapshotTotal;
 			console.error('删除绑定失败:', error);
 			toast.error('删除失败，请重试');
 			return false;
 		} finally {
-			aiProxyProxiesStore.endOperation(assignmentId);
+			this.endOperation(assignmentId);
 		}
 	}
 
 	// ============ 健康状态管理 ============
 
 	async resetHealth(assignmentId: string) {
-		aiProxyProxiesStore.startOperation(assignmentId);
+		this.startOperation(assignmentId);
 		const oldAssignment = this.assignments.items.find((a) => a.id === assignmentId);
 		if (oldAssignment) {
 			this.patchAssignmentHealthStatus(assignmentId, {
@@ -311,7 +297,7 @@ class AiProxyAssignmentsStore {
 			toast.error('重置失败，请重试');
 			return false;
 		} finally {
-			aiProxyProxiesStore.endOperation(assignmentId);
+			this.endOperation(assignmentId);
 		}
 	}
 
@@ -350,8 +336,6 @@ class AiProxyAssignmentsStore {
 			outputPer1k: '',
 			minimum: ''
 		};
-		aiProxyProxiesStore.availableModels = [];
-		aiProxyProxiesStore.modelTestStatus = new Map();
 	}
 }
 

@@ -12,7 +12,7 @@ import { AI_PROVIDER } from '$lib/config/constants';
 
 class AiProxyProxiesStore {
 	// Proxy 分页状态
-	proxies = new PaginatedState<AiProxyItem>();
+	proxies = new PaginatedState<AiProxyItem>(50);
 
 	// 操作状态
 	operatingItems = $state<Set<string>>(new Set());
@@ -201,14 +201,15 @@ class AiProxyProxiesStore {
 
 		this.startOperation(proxyId);
 
-		const index = this.proxies.items.findIndex((p) => p.id === proxyId);
-		if (index === -1) {
+		const snapshot = this.proxies.items;
+		const snapshotTotal = this.proxies.total;
+
+		if (!snapshot.find((p) => p.id === proxyId)) {
 			this.endOperation(proxyId);
 			return false;
 		}
 
-		const deletedItem = this.proxies.items[index];
-		this.proxies.items = this.proxies.items.filter((p) => p.id !== proxyId);
+		this.proxies.items = snapshot.filter((p) => p.id !== proxyId);
 		this.proxies.total--;
 
 		try {
@@ -219,23 +220,15 @@ class AiProxyProxiesStore {
 				aiProxyAssignmentsStore.silentReloadAssignments();
 				return true;
 			} else {
-				this.proxies.items = [
-					...this.proxies.items.slice(0, index),
-					deletedItem,
-					...this.proxies.items.slice(index)
-				];
-				this.proxies.total++;
+				this.proxies.items = snapshot;
+				this.proxies.total = snapshotTotal;
 				const data = await res.json();
 				toast.error(data.error || '删除失败');
 				return false;
 			}
 		} catch (error) {
-			this.proxies.items = [
-				...this.proxies.items.slice(0, index),
-				deletedItem,
-				...this.proxies.items.slice(index)
-			];
-			this.proxies.total++;
+			this.proxies.items = snapshot;
+			this.proxies.total = snapshotTotal;
 			console.error('删除 Proxy 失败:', error);
 			toast.error('删除失败，请重试');
 			return false;

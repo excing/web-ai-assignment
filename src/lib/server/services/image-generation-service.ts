@@ -146,8 +146,8 @@ export class ImageGenerationService {
 		if (config.provider === AI_PROVIDER.POLLINATIONS_IMAGE) {
 			// 委托给 PollinationsImageService 处理
 			const pollinationsService = new PollinationsImageService({
-				feature: (this.base as any)['options'].feature,
-				userId: (this.base as any)['options'].userId,
+				feature: this.base.feature,
+				userId: this.base.userId,
 				defaultModel: config.model,
 			});
 			return await pollinationsService.handleImageGenerationRequest(request);
