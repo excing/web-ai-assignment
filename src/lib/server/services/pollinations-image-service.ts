@@ -9,7 +9,7 @@ import type { UIMessage } from 'ai';
 import { BaseAIService } from './base-ai-service';
 import { createLogger } from '$lib/server/logger';
 import { reportAssignmentSuccess, reportAssignmentFailure } from '$lib/server/ai-proxy';
-import { BillingService } from '$lib/server/credits/billing-service';
+import { BillingService, InsufficientBalanceError } from '$lib/server/credits/billing-service';
 import { extractMediaResources, type MediaResource } from './media-extractor';
 import { AI_PROVIDER } from '$lib/config/constants';
 
@@ -260,6 +260,13 @@ export class PollinationsImageService {
 				};
 			}
 
+			// 余额预检：在 API 调用前拦截余额不足的用户
+			if (this.billingService) {
+				await this.billingService.autoPreCheck(config, {
+					description: `Pollinations Image 生成 - ${request.model || this.defaultModel}`,
+				});
+			}
+
 			// 构建 API URL
 			const apiUrl = this.buildApiUrl(config.baseUrl, request);
 
@@ -299,23 +306,22 @@ export class PollinationsImageService {
 			// 记录成功
 			await reportAssignmentSuccess(config.assignmentId, config.isBackup);
 
-			// 生成临时图像 URL（通常在客户端处理）
-			const contentType = response.headers.get('content-type') || 'image/jpeg';
-			const dataUrl = `data:${contentType};base64,${imageData.toString('base64')}`;
-
-			// 使用 extractMediaResources 来处理远程链接
-			const { text: processedText, resources: mediaResources } = await extractMediaResources({
-				text: dataUrl,
-			});
-
-			// 执行扣费
-			if (mediaResources.length > 0 && this.billingService) {
-				const usage = { promptTokens: 0, completionTokens: 0 };
+			// 图片生成成功即扣费（不依赖后续 R2 上传结果）
+			if (this.billingService) {
 				await this.billingService.autoCharge(config, {
-					usage,
+					usage: { promptTokens: 0, completionTokens: 0 },
 					description: `Pollinations Image 生成 - ${request.model || this.defaultModel}`,
 				});
 			}
+
+			// 生成 data URL
+			const contentType = response.headers.get('content-type') || 'image/jpeg';
+			const dataUrl = `data:${contentType};base64,${imageData.toString('base64')}`;
+
+			// 上传到 R2（失败不影响计费和返回）
+			const { text: processedText, resources: mediaResources } = await extractMediaResources({
+				text: dataUrl,
+			});
 
 			return {
 				imageUrl: processedText,
@@ -324,6 +330,9 @@ export class PollinationsImageService {
 				finishReason: 'success',
 			};
 		} catch (error) {
+			// 余额不足需向上传播，由 API 路由返回 402
+			if (error instanceof InsufficientBalanceError) throw error;
+
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			log.error('Pollinations Image generation failed', error instanceof Error ? error : new Error(errorMessage));
 
